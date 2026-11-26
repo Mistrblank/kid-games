@@ -204,7 +204,7 @@ button.big{background:var(--mint);border-color:var(--mint);color:#04261a;font-si
 </div>
 
 <script>
-{
+(function () {
 // ===== SETTINGS: You can change these! =====
 const MAX = 40;            // biggest number in any problem
 const DOORS = 20;          // how many doors before the escape pod
@@ -531,7 +531,7 @@ $('retryBtn').addEventListener('click', toStart);
 const ro = new ResizeObserver(place); ro.observe(stage);
 
 build(); dots(); drawLives(); requestAnimationFrame(loop);
-}
+})();
 </script>
 </body>
 </html>

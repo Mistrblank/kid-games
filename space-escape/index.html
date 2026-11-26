@@ -181,7 +181,7 @@ button.big{background:var(--mint);border-color:var(--mint);color:#04261a;font-si
 </div>
 
 <script>
-{
+(function () {
 // ===== SETTINGS: You can change these! =====
 const MAX = 40;           // biggest number in any problem
 const DOORS = 10;         // how many doors before the Queen Mermaid
@@ -527,7 +527,7 @@ $('againBtn').addEventListener('click', () => { $('winScreen').hidden = true; $(
 const ro = new ResizeObserver(place); ro.observe(stage);
 
 build(); dots(); requestAnimationFrame(loop);
-}
+})();
 </script>
 </body>
 </html>

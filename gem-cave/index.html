@@ -85,7 +85,7 @@
 <button class="btn" id="reset">Start completely over</button>
 
 <script>
-{
+(function () {
 const COLS = 12, ROWS = 40, VIEW = 14, T = 40;
 const canvas = document.getElementById('cave');
 const ctx = canvas.getContext('2d');
@@ -736,7 +736,7 @@ if (load()) { render(); setMsg('Welcome back! Your game was saved.'); }
 else newGame();
 setInterval(tick, 200);
 animate();
-}
+})();
 </script>
 </body>
 </html>

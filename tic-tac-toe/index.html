@@ -174,7 +174,7 @@ easier to trick. Why do you think that is?</pre></div>
 </main>
 
 <script>
-{
+(function () {
 let N=3,K=3,SZ=9,LINES=[];
 function buildLines(){LINES=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++)for(const[dr,dc]of[[0,1],[1,0],[1,1],[1,-1]]){const l=[];for(let k=0;k<K;k++){const rr=r+dr*k,cc=c+dc*k;if(rr<0||rr>=N||cc<0||cc>=N)break;l.push(rr*N+cc)}if(l.length===K)LINES.push(l)}}
 const WORD={3:'three',4:'four',5:'five',6:'six'};
@@ -303,7 +303,7 @@ function setRules(n,k){
 $('sizeSeg').addEventListener('change',e=>setRules(+e.target.value,K));
 $('winSeg').addEventListener('change',e=>setRules(N,+e.target.value));
 {const r=(store.get('ttt-rules')||'').split(',').map(Number);setRules(r[0],r[1])}
-}
+})();
 </script>
 </body>
 </html>
