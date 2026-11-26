@@ -1,0 +1,21 @@
+{
+  "name": "Space Escape Math 2",
+  "short_name": "Space Escape 2",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f1530",
+  "theme_color": "#0f1530",
+  "icons": [
+    {
+      "src": "../icons/space2-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "../icons/space2-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

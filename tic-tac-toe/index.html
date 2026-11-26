@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tic Tac Toe vs Robot</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tic Tac Toe">
+<meta name="theme-color" content="#ffd23f">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="../icons/ttt-180.png">
+<link rel="icon" type="image/png" href="../icons/ttt-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: playful, warm, kid-level words, never babyish
+   IDEA: a chunky cardboard game box on the kitchen table, with a friendly robot as the opponent
+   PICTURE: the big board itself, hand-drawn X and O strokes that draw themselves in
+   COLOUR and TYPE: sunny yellow field, deep ink, blue for the kid's X, coral for Robot's O; Fredoka + Nunito
+   LAYOUT: board left/top, Robot's speech bubble and controls beside it, "peek inside Robot's brain" panel below */
+:root{color-scheme:light dark;
+  --bg:light-dark(#ffd23f,#17163a);--ink:light-dark(#1d1b45,#f4f1ff);
+  --card:light-dark(#fffaf0,#24224f);--line:light-dark(#1d1b45,#c9c3ff);
+  --x:light-dark(#2457ff,#6f95ff);--o:light-dark(#ef5a3c,#ff7d61);
+  --soft:light-dark(#fff0b8,#2e2c63);--muted:light-dark(#4a4770,#b9b4e6)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 Nunito,system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(20px,3.5vw,48px) max(5vw,16px);max-width:1240px;margin:0 auto}
+.titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.home{color:var(--ink);text-decoration:none;font-weight:800;border:3px solid var(--line);border-radius:14px;padding:6px 14px;min-height:44px;display:inline-flex;align-items:center;background:var(--card)}
+.home:focus-visible{outline:3px solid var(--x);outline-offset:2px}
+h1{font:700 clamp(32px,5vw,48px)/1.05 Fredoka,Nunito,sans-serif;margin:0 0 6px;text-wrap:balance}
+h1 .x{color:var(--x)}h1 .o{color:var(--o)}
+.sub{margin:0 0 22px;color:var(--muted);max-width:60ch}
+.game{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:clamp(18px,3vw,36px);align-items:start}
+.boardbox{background:var(--card);border:3px solid var(--line);border-radius:28px;padding:clamp(12px,2.5vw,22px);box-shadow:0 10px 0 var(--line)}
+.board{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));aspect-ratio:1;position:relative;gap:5px;background:var(--line);border-radius:10px;overflow:hidden}
+.cell{appearance:none;border:0;background:var(--card);padding:10%;cursor:pointer;position:relative;color:var(--ink);font:inherit;touch-action:manipulation}
+.cell:hover:not(:disabled){background:var(--soft)}
+.cell:focus-visible{outline:4px solid var(--x);outline-offset:-8px;border-radius:14px}
+.cell:disabled{cursor:default}
+.cell .num{position:absolute;top:4px;left:7px;font-size:13px;color:var(--muted);opacity:.7}
+.cell svg{width:100%;height:100%;display:block;overflow:visible}
+.mark{fill:none;stroke-width:14;stroke-linecap:round;stroke-dasharray:200;stroke-dashoffset:0}
+.fresh .mark{stroke-dashoffset:200;animation:draw .45s ease-out forwards}
+.mark.x{stroke:var(--x)}.mark.o{stroke:var(--o)}.fresh .mark.b{animation-delay:.2s}
+.win{background:var(--soft)!important}
+@keyframes draw{to{stroke-dashoffset:0}}
+@media(prefers-reduced-motion:reduce){.fresh .mark{animation:none;stroke-dashoffset:0}.dots i{animation:none!important}}
+.side{display:flex;flex-direction:column;gap:16px}
+.robot{display:flex;gap:14px;align-items:flex-start}
+.face{flex:none;width:64px;height:64px}
+.bubble{background:var(--card);border:3px solid var(--line);border-radius:22px 22px 22px 6px;padding:14px 18px;font-size:18px;font-weight:700;min-height:64px;flex:1;box-shadow:0 6px 0 var(--line)}
+.bubble small{display:block;font-weight:400;font-size:14px;color:var(--muted);margin-top:4px}
+.dots i{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:50%;background:var(--o);animation:bop 1s infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes bop{50%{transform:translateY(-6px)}}
+.score{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;text-align:center}
+.score div{background:var(--card);border:3px solid var(--line);border-radius:16px;padding:8px 4px}
+.score b{display:block;font:700 30px/1.1 Fredoka,sans-serif}
+.score .you b{color:var(--x)}.score .cl b{color:var(--o)}
+.score span{font-size:14px;color:var(--muted)}
+fieldset{border:0;margin:0;padding:0}
+legend{font-weight:800;margin-bottom:6px;font-size:15px}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg label{flex:1 1 auto}
+.seg input{position:absolute;opacity:0}
+.seg span{display:block;text-align:center;min-height:44px;padding:9px 12px;border:3px solid var(--line);border-radius:14px;background:var(--card);cursor:pointer;font-weight:700}
+.seg input:checked+span{background:var(--ink);color:var(--card)}
+.seg input:focus-visible+span{outline:3px solid var(--x);outline-offset:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.row label.name{flex:1 1 140px;font-weight:800;font-size:15px}
+input[type=text]{width:100%;font:16px Nunito,sans-serif;min-height:44px;padding:8px 12px;border:3px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);margin-top:6px}
+.btn{font:700 18px Fredoka,sans-serif;min-height:48px;padding:10px 22px;border:3px solid var(--line);border-radius:16px;background:var(--o);color:#fff;cursor:pointer;box-shadow:0 5px 0 var(--line);touch-action:manipulation}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 var(--line)}
+.btn:focus-visible{outline:3px solid var(--x);outline-offset:3px}
+.peek{margin-top:clamp(22px,3vw,36px);background:var(--card);border:3px solid var(--line);border-radius:24px;padding:4px 20px}
+.peek summary{cursor:pointer;font:700 20px Fredoka,sans-serif;padding:14px 0;min-height:44px}
+.peek h3{font:700 17px Fredoka,sans-serif;margin:16px 0 6px}
+.peek ol{padding-left:22px;margin:0 0 10px}.peek li{margin-bottom:6px}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding-bottom:18px}
+pre{overflow-x:auto;white-space:pre-wrap;background:var(--soft);border-radius:14px;padding:12px;font:14px/1.45 ui-monospace,Menlo,monospace;margin:0;min-height:80px}
+.note{font-size:14px;color:var(--muted);margin:8px 0 0}
+@media(max-width:760px){.game{grid-template-columns:minmax(0,1fr)}.cols{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<main class="band">
+  <div class="titlebar"><h1>You <span class="x">X</span> vs Robot <span class="o">O</span></h1><a class="home" href="../">← All games</a></div>
+  <p class="sub"><span id="rule"></span> Tap a square to make your move. Robot checks the board, picks its move, and tells you why.</p>
+
+  <div class="game">
+    <div class="boardbox"><div class="board" id="board" role="grid" aria-label="Tic Tac Toe board"></div></div>
+
+    <div class="side">
+      <div class="robot">
+        <svg class="face" viewBox="0 0 64 64" aria-hidden="true">
+          <line x1="32" y1="3" x2="32" y2="10" stroke="var(--line)" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="32" cy="4" r="3.5" fill="var(--o)" stroke="var(--line)" stroke-width="2"/>
+          <rect x="5" y="10" width="54" height="50" rx="14" fill="var(--o)" stroke="var(--line)" stroke-width="3"/>
+          <rect x="14" y="21" width="14" height="12" rx="4" fill="var(--line)"/><rect x="36" y="21" width="14" height="12" rx="4" fill="var(--line)"/>
+          <circle cx="19" cy="25" r="2" fill="#fff"/><circle cx="41" cy="25" r="2" fill="#fff"/>
+          <path d="M20 44q12 9 24 0" fill="none" stroke="var(--line)" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <div class="bubble" id="bubble" aria-live="polite">Hi! I'm Robot. Want to play? You go first.</div>
+      </div>
+
+      <div class="score">
+        <div class="you"><b id="sY">0</b><span id="youLbl">You</span></div>
+        <div><b id="sT">0</b><span>Ties</span></div>
+        <div class="cl"><b id="sC">0</b><span>Robot</span></div>
+      </div>
+
+      <fieldset>
+        <legend>Board size</legend>
+        <div class="seg" id="sizeSeg"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>How many in a row to win?</legend>
+        <div class="seg" id="winSeg"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>How hard should Robot try?</legend>
+        <div class="seg" id="level">
+          <label><input type="radio" name="lvl" value="easy" checked><span>Easy</span></label>
+          <label><input type="radio" name="lvl" value="medium"><span>Medium</span></label>
+          <label><input type="radio" name="lvl" value="hard"><span>Hard</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Who goes first?</legend>
+        <div class="seg">
+          <label><input type="radio" name="first" value="you" checked><span>Me</span></label>
+          <label><input type="radio" name="first" value="robot"><span>Robot</span></label>
+          <label><input type="radio" name="first" value="swap"><span>Take turns</span></label>
+        </div>
+      </fieldset>
+
+      <div class="row">
+        <label class="name" for="name">Your name<input type="text" id="name" maxlength="20" placeholder="Type your name"></label>
+        <button class="btn" id="newGame" type="button">New game</button>
+      </div>
+    </div>
+  </div>
+
+  <details class="peek" id="peek">
+    <summary>Peek inside Robot's brain</summary>
+    <h3>How does Robot decide?</h3>
+    <p>Robot doesn't think like you. It follows a <b>checklist</b>, the same one every time, and stops at the first rule that works:</p>
+    <ol>
+      <li><b>Can I win right now?</b> If one square finishes my line, take it.</li>
+      <li><b>Do I have to block?</b> If you're one square away from winning, block it.</li>
+      <li><b>Can I build a line?</b> Add to a line that has my O's and none of your X's.</li>
+      <li><b>Is the middle free?</b> Middle squares are part of the most lines.</li>
+      <li><b>Nothing else?</b> Pick any empty square.</li>
+    </ol>
+    <p><b>Easy</b> and <b>Medium</b> use the same checklist, but Robot sometimes "forgets" to check a rule. That's the only difference! People who write programs call a checklist like this an <b>algorithm</b>.</p>
+    <div class="cols">
+      <div><h3>Robot's checklist for its last move</h3><pre id="steps">Make a move and Robot's checklist will show up here.</pre></div>
+      <div><h3>Try this</h3><pre>Can you set a trap where you could win TWO ways at once?
+Robot can only block one of them!
+
+On a big board, Robot's checklist gets
+easier to trick. Why do you think that is?</pre></div>
+    </div>
+  </details>
+</main>
+
+<script>
+{
+let N=3,K=3,SZ=9,LINES=[];
+function buildLines(){LINES=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++)for(const[dr,dc]of[[0,1],[1,0],[1,1],[1,-1]]){const l=[];for(let k=0;k<K;k++){const rr=r+dr*k,cc=c+dc*k;if(rr<0||rr>=N||cc<0||cc>=N)break;l.push(rr*N+cc)}if(l.length===K)LINES.push(l)}}
+const WORD={3:'three',4:'four',5:'five',6:'six'};
+// How often Robot remembers to check each rule (1 = always, 0 = never)
+const SKILL={
+  easy:  {win:.5, block:.35, build:.2, mid:.2},
+  medium:{win:1,  block:.8,  build:.6, mid:.6},
+  hard:  {win:1,  block:1,   build:1,  mid:1}
+};
+const $=id=>document.getElementById(id);
+const boardEl=$('board'),bubble=$('bubble');
+let board=[],busy=false,over=false,gameNo=0,lastFirstRobot=false,fresh=-1;
+const score={Y:0,T:0,C:0};
+
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const savedName=store.get('ttt-name');if(savedName)$('name').value=savedName;
+const kid=()=>($('name').value.trim()||'You');
+const updName=()=>{$('youLbl').textContent=kid();store.set('ttt-name',$('name').value.trim())};
+$('name').addEventListener('input',updName);updName();
+
+const xSvg='<svg viewBox="0 0 100 100"><path class="mark x" pathLength="200" d="M18 18L82 82"/><path class="mark x b" pathLength="200" d="M82 18L18 82"/></svg>';
+const oSvg='<svg viewBox="0 0 100 100"><circle class="mark o" pathLength="200" cx="50" cy="50" r="33" transform="rotate(-90 50 50)"/></svg>';
+
+function render(win){
+  boardEl.innerHTML=board.map((v,i)=>{
+    const label=v?(v==='X'?kid()+"'s X":"Robot's O"):'Empty square '+(i+1);
+    return '<button class="cell'+(win&&win.includes(i)?' win':'')+(i===fresh?' fresh':'')+'" data-i="'+i+'" aria-label="'+label.replace(/[&<>"']/g,'')+'"'+(v||busy||over?' disabled':'')+'>'+
+      (v==='X'?xSvg:v==='O'?oSvg:'<span class="num">'+(i+1)+'</span>')+'</button>';
+  }).join('');
+}
+function say(main,small){bubble.textContent=main;if(small){const s=document.createElement('small');s.textContent=small;bubble.appendChild(s)}}
+function thinking(){bubble.innerHTML='<span class="dots"><i></i><i></i><i></i></span> Robot is thinking…'}
+function winner(b){for(const l of LINES){if(b[l[0]]&&l.every(i=>b[i]===b[l[0]]))return{who:b[l[0]],line:l}}return b.every(Boolean)?{who:'tie'}:null}
+function scoreboard(){$('sY').textContent=score.Y;$('sT').textContent=score.T;$('sC').textContent=score.C}
+
+function finish(){
+  const w=winner(board);if(!w)return false;
+  over=true;
+  if(w.who==='X'){score.Y++;say('You win! Great job, '+kid()+'!','You got '+WORD[K]+' in a row. Press "New game" to play again.')}
+  else if(w.who==='O'){score.C++;say('I got '+WORD[K]+' in a row! Good game!','Want a rematch? Try watching for my lines to block them.')}
+  else{score.T++;say("It's a tie! Nobody got "+WORD[K]+' in a row.','Tic Tac Toe often ends in a tie when both players block well.')}
+  scoreboard();render(w.line);return true;
+}
+
+boardEl.addEventListener('click',e=>{
+  const c=e.target.closest('.cell');if(!c||busy||over)return;
+  const i=+c.dataset.i;if(board[i])return;
+  board[i]='X';fresh=i;render();
+  if(!finish())robotTurn();
+});
+
+// ===== Robot's brain: a checklist, checked in order =====
+function think(){
+  const lvl=document.querySelector('input[name=lvl]:checked').value,P=SKILL[lvl];
+  const steps=[],remembers=p=>Math.random()<p,pick=a=>a[Math.floor(Math.random()*a.length)];
+  const empty=board.map((v,i)=>v?null:i).filter(i=>i!==null);
+  // a square that finishes a line for player p (K-1 of theirs + 1 empty)
+  const finisher=p=>{for(const l of LINES){const v=l.map(i=>board[i]);if(v.filter(x=>x===p).length===K-1&&v.includes(''))return l[v.indexOf('')]}return -1};
+  const done=(i,say,n,text)=>{steps.push(n+'. '+text+' → square '+(i+1));return{i,say,steps}};
+
+  const w=finisher('O');
+  if(w<0)steps.push('1. Can I win right now? No.');
+  else if(remembers(P.win))return done(w,'Square '+(w+1)+' gives me '+WORD[K]+' in a row!',1,'Can I win right now? YES');
+  else steps.push('1. Can I win right now? (Forgot to check!)');
+
+  const b=finisher('X');
+  if(b<0)steps.push('2. Do I have to block? No.');
+  else if(remembers(P.block))return done(b,'I blocked you! You almost had '+WORD[K]+' in a row.',2,'Do I have to block? YES');
+  else steps.push('2. Do I have to block? (Forgot to check!)');
+
+  if(remembers(P.build)){
+    let best=0,spots=[];
+    for(const l of LINES){
+      const v=l.map(i=>board[i]);if(v.includes('X'))continue;
+      const o=v.filter(x=>x==='O').length;if(o===0)continue;
+      if(o>best){best=o;spots=[]}
+      if(o===best)l.forEach(i=>{if(!board[i])spots.push(i)});
+    }
+    if(spots.length){const s=pick(spots);return done(s,"I'm building a line with square "+(s+1)+'.',3,'Can I build a line? YES')}
+    steps.push('3. Can I build a line? No.');
+  }else steps.push('3. Can I build a line? (Forgot to check!)');
+
+  if(remembers(P.mid)){
+    const m=(N-1)/2,mid=empty.filter(i=>Math.abs(Math.floor(i/N)-m)<1&&Math.abs(i%N-m)<1);
+    if(mid.length){const s=pick(mid);return done(s,'I like the middle. It is part of lots of lines!',4,'Is the middle free? YES')}
+    steps.push('4. Is the middle free? No.');
+  }else steps.push('4. Is the middle free? (Forgot to check!)');
+
+  const r=pick(empty);
+  return done(r,"I'll try square "+(r+1)+'.',5,'Nothing else, so pick any empty square');
+}
+
+function robotTurn(){
+  busy=true;render();thinking();
+  const myGame=gameNo;
+  setTimeout(()=>{
+    if(myGame!==gameNo)return;
+    const t=think();
+    $('steps').textContent=t.steps.join('\n');
+    board[t.i]='O';fresh=t.i;busy=false;
+    if(!finish()){render();say(t.say,'Your turn!')}
+  },650);
+}
+
+function newGame(){
+  gameNo++;SZ=N*N;buildLines();board=Array(SZ).fill('');fresh=-1;busy=false;over=false;
+  boardEl.style.setProperty('--n',N);
+  $('rule').textContent=N+'×'+N+' board: get '+WORD[K]+' in a row to win.';
+  const f=document.querySelector('input[name=first]:checked').value;
+  const robotFirst=f==='robot'||(f==='swap'&&!lastFirstRobot);
+  lastFirstRobot=f==='swap'?robotFirst:false;
+  render();
+  if(robotFirst)robotTurn();else say('Your turn, '+kid()+'! Tap any square.');
+}
+$('newGame').addEventListener('click',newGame);
+
+function segs(){
+  $('sizeSeg').innerHTML=[3,4,5,6].map(v=>'<label><input type="radio" name="size" value="'+v+'"'+(v===N?' checked':'')+'><span>'+v+'×'+v+'</span></label>').join('');
+  const ks=[];for(let k=3;k<=N;k++)ks.push(k);
+  $('winSeg').innerHTML=ks.map(v=>'<label><input type="radio" name="win" value="'+v+'"'+(v===K?' checked':'')+'><span>'+v+'</span></label>').join('');
+}
+function setRules(n,k){
+  N=Math.min(6,Math.max(3,n||3));K=Math.min(N,Math.max(3,k||3));
+  store.set('ttt-rules',N+','+K);segs();newGame();
+}
+$('sizeSeg').addEventListener('change',e=>setRules(+e.target.value,K));
+$('winSeg').addEventListener('change',e=>setRules(N,+e.target.value));
+{const r=(store.get('ttt-rules')||'').split(',').map(Number);setRules(r[0],r[1])}
+}
+</script>
+</body>
+</html>

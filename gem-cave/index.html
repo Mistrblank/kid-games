@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Gem Cave</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh; background: #1a1210; color: #f5e6c8;
+    font-family: "Trebuchet MS", system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  }
+  h1 { margin: 12px 0 4px; font-size: 28px; letter-spacing: 2px; color: #ffcf5a; text-shadow: 0 2px 0 #7a4a10; }
+  #hud { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 6px 8px 6px; font-size: 17px; }
+  .pill { background: #3a2a22; border: 2px solid #5c4232; border-radius: 999px; padding: 4px 12px; white-space: nowrap; }
+  #pickBar { display: inline-block; width: 60px; height: 10px; background: #1a1210; border-radius: 5px; vertical-align: middle; overflow: hidden; }
+  #pickFill { height: 100%; background: #6fd36f; width: 100%; }
+  #msg { min-height: 26px; font-size: 19px; color: #9fe8ff; margin: 4px 10px 8px; text-align: center; }
+  canvas { border: 4px solid #5c4232; border-radius: 10px; background: #000; width: min(480px, 96vw); height: auto; touch-action: none; }
+  #controls { display: grid; grid-template-columns: repeat(3, 72px); grid-template-rows: repeat(2, 64px); gap: 8px; margin: 14px 0 8px; }
+  #controls button {
+    font-size: 30px; border: none; border-radius: 14px; background: #6b4a2e; color: #fff;
+    box-shadow: 0 4px 0 #3b2716; cursor: pointer;
+  }
+  #controls button:active { transform: translateY(3px); box-shadow: 0 1px 0 #3b2716; }
+  #up { grid-column: 2; grid-row: 1; } #left { grid-column: 1; grid-row: 2; }
+  #down { grid-column: 2; grid-row: 2; } #right { grid-column: 3; grid-row: 2; }
+  .btn {
+    font-size: 16px; padding: 10px 18px; border: none; border-radius: 12px; color: #fff; cursor: pointer;
+    font-family: inherit;
+  }
+  #rope { background: #8a5a2b; box-shadow: 0 4px 0 #4a2f14; margin-bottom: 14px; }
+  #shop { width: min(480px, 96vw); background: #2a1d17; border: 3px solid #5c4232; border-radius: 14px; padding: 12px; margin-bottom: 14px; }
+  #shop h2 { margin: 0 0 4px; font-size: 22px; color: #ffcf5a; }
+  #shopNote { font-size: 14px; opacity: .85; margin-bottom: 8px; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #4a362b; }
+  .item .info { flex: 1; }
+  .item .name { font-weight: bold; font-size: 17px; }
+  .item .desc { font-size: 14px; opacity: .8; }
+  .item button { background: #2f7d4a; box-shadow: 0 4px 0 #1a4a2a; min-width: 92px; }
+  .item button:disabled { background: #555; box-shadow: 0 4px 0 #333; color: #bbb; cursor: default; }
+  .legend { font-size: 14px; opacity: .8; margin: 0 10px 8px; text-align: center; max-width: 480px; }
+  #reset { background: transparent; color: #c9a98a; text-decoration: underline; margin-bottom: 24px; font-size: 14px; }
+</style>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Gem Cave">
+<meta name="theme-color" content="#1a1210">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="../icons/gem-180.png">
+<link rel="icon" type="image/png" href="../icons/gem-180.png">
+<style>.home{align-self:flex-start;margin:10px 0 0 10px;color:#c9a98a;text-decoration:none;font-weight:bold;border:2px solid #5c4232;border-radius:12px;padding:8px 14px;min-height:44px;display:inline-flex;align-items:center}</style>
+</head>
+<body>
+<a class="home" href="../">← All games</a>
+<h1>⛏️ GEM CAVE</h1>
+<div id="hud">
+  <span class="pill" id="hearts"></span>
+  <span class="pill">⛏️ <span id="pickBar"><span id="pickFill" style="display:block"></span></span> <b id="pickNum"></b></span>
+  <span class="pill">🎒 <b id="bag">0</b> gems</span>
+  <span class="pill">🪙 <b id="coins">0</b></span>
+  <span class="pill">📏 <b id="depth">0</b>m</span>
+  <span class="pill" id="bossPill"></span>
+</div>
+<div id="msg"></div>
+<canvas id="cave" width="480" height="560"></canvas>
+<div id="controls">
+  <button id="up" aria-label="Up">⬆️</button>
+  <button id="left" aria-label="Left">⬅️</button>
+  <button id="down" aria-label="Down">⬇️</button>
+  <button id="right" aria-label="Right">➡️</button>
+</div>
+<button class="btn" id="rope">🪢 Rope up to the surface (drops half your gems)</button>
+<div class="legend">Gems in your bag turn into coins when you get back to the grass. Deeper gems are worth more: Ruby 10 · Emerald 20 · Sapphire 30 · Diamond 50. Watch out for falling boulders, bats (tap toward a bat to bop it!), and dirt with orange specks — that's lava! A Rock Golem guards the bottom of the cave. Look for cracked stone: secret passages hide its 3 hearts.</div>
+<div id="shop">
+  <h2>🏪 Miner's Shop</h2>
+  <div id="shopNote"></div>
+  <div id="shopItems"></div>
+</div>
+<button class="btn" id="reset">Start completely over</button>
+
+<script>
+{
+const COLS = 12, ROWS = 40, VIEW = 14, T = 40;
+const canvas = document.getElementById('cave');
+const ctx = canvas.getContext('2d');
+
+const SKY = 0, EMPTY = 1, DIRT = 2, ROCK = 3, GEM = 4, LAVA = 5, STONE = 6, CRACK = 7, BHEART = 8, CHEST = 9;
+const GEMS = {
+  ruby:     { color: '#ff3b5c', shine: '#ffb3c1', points: 10, name: 'Ruby' },
+  emerald:  { color: '#22d36b', shine: '#b5ffd2', points: 20, name: 'Emerald' },
+  sapphire: { color: '#3b7bff', shine: '#b9d1ff', points: 30, name: 'Sapphire' },
+  diamond:  { color: '#e8fbff', shine: '#ffffff', points: 50, name: 'Diamond' },
+  rainbow:  { color: '#ff6bd6', shine: '#ffffff', points: 200, name: 'Rainbow Gem', hidden: true },
+};
+const SAVE_KEY = 'gemCaveSave_v1';
+const PICK_MAX = [30, 50, 80, 120];
+const PICK_COST = [60, 150, 300];
+const HEART_COST = { 3: 100, 4: 250 };
+
+let grid, bats, player, coins, bag, dur, up, vaults, boss, sparkles, tickCount = 0, shakeT = 0;
+
+const rand = n => Math.floor(Math.random() * n);
+const atSurface = () => player.y === 0;
+
+function pickGem(row) {
+  const r = Math.random() + (row / ROWS) * 0.9;
+  if (r > 1.35) return 'diamond';
+  if (r > 1.0) return 'sapphire';
+  if (r > 0.65) return 'emerald';
+  return 'ruby';
+}
+
+function buildCave() {
+  grid = [];
+  for (let y = 0; y < ROWS; y++) {
+    const row = [];
+    for (let x = 0; x < COLS; x++) {
+      if (y === 0) { row.push({ t: SKY }); continue; }
+      if (y === 1) { row.push({ t: DIRT, shade: Math.random() }); continue; }
+      const r = Math.random();
+      const lavaChance = y > 6 ? 0.02 + (y / ROWS) * 0.06 : 0;
+      if (r < 0.12) row.push({ t: ROCK });
+      else if (r < 0.22) row.push({ t: GEM, gem: pickGem(y), shade: Math.random() });
+      else if (y > 20 && r < 0.226) row.push({ t: GEM, gem: 'rainbow', shade: Math.random() });
+      else if (r < 0.226 + lavaChance) row.push({ t: LAVA, seen: false, shade: Math.random() });
+      else row.push({ t: DIRT, shade: Math.random() });
+    }
+    grid.push(row);
+  }
+  // Open pockets with bats in them
+  bats = [];
+  const pockets = 5;
+  for (let i = 0; i < pockets; i++) {
+    const py = 8 + rand(ROWS - 11), px = rand(COLS - 3);
+    for (let x = px - 1; x <= px + 3; x++) {          // solid roof so rocks don't drop in right away
+      if (x >= 0 && x < COLS && grid[py - 1][x].t === ROCK) grid[py - 1][x] = { t: DIRT, shade: Math.random() };
+    }
+    for (let y = py; y < py + 2; y++)
+      for (let x = px; x < px + 3; x++) grid[y][x] = { t: EMPTY };
+    bats.push({ x: px + 1, y: py });
+  }
+
+  // Boss lair at the bottom: ancient stone roof with two dirt doorways
+  const R = ROWS - 4;
+  for (let x = 0; x < COLS; x++) {
+    grid[R][x] = (x === 1 || x === COLS - 2) ? { t: DIRT, shade: Math.random() } : { t: STONE };
+    for (let y = R + 1; y < ROWS; y++) grid[y][x] = { t: EMPTY };
+  }
+  boss = { x: 5, y: ROWS - 2, hearts: 3, max: 3, defeated: false, stomp: 0 };
+  bats = bats.filter(b => b.y < R);
+
+  // Secret vaults: a block of ancient stone with a cracked passage leading to one of the boss's hearts
+  vaults = [];
+  [[9, 14], [17, 24], [26, R - 4]].forEach(([lo, hi], i) => {
+    const cy = lo + rand(hi - lo + 1);
+    const left = Math.random() < 0.5;
+    const cx = left ? 2 + rand(COLS - 3) : 1 + rand(COLS - 3);
+    for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 1; x <= cx + 1; x++) grid[y][x] = { t: STONE };
+    grid[cy][cx] = { t: BHEART, v: i };
+    const d = left ? -1 : 1;
+    grid[cy][cx + d] = { t: CRACK, v: i };
+    grid[cy][cx + 2 * d] = { t: CRACK, v: i };
+    vaults.push({ open: false });
+    bats = bats.filter(b => !(Math.abs(b.x - cx) <= 3 && Math.abs(b.y - cy) <= 1));
+  });
+  sparkles = [];
+}
+
+function newGame() {
+  coins = 0;
+  up = { pick: 0, maxHearts: 3, smasher: false, boots: false };
+  freshCave();
+  setMsg('Dig down and find gems! Bring them back up to the grass to sell them.');
+}
+
+function freshCave() {
+  buildCave();
+  player = { x: Math.floor(COLS / 2), y: 0, face: 1, hearts: up.maxHearts, inv: 0 };
+  bag = []; dur = PICK_MAX[up.pick];
+  render();
+}
+
+function setMsg(t) { document.getElementById('msg').textContent = t; }
+
+// ---------- Player actions ----------
+function move(dx, dy) {
+  if (dx) player.face = dx;
+  const nx = player.x + dx, ny = player.y + dy;
+  if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return;
+  const cell = grid[ny][nx];
+
+  if (bossAt(nx, ny)) { hurt('The Rock Golem is too tough! Find its 3 hidden hearts first.'); render(); return; }
+
+  const bat = bats.find(b => b.x === nx && b.y === ny);
+  if (bat) {
+    bats = bats.filter(b => b !== bat);
+    coins += 5;
+    setMsg('WHACK! You bopped the bat and it flew off. +5 coins');
+    for (let i = 0; i < 12; i++) sparkles.push({ x: nx * T + T/2, y: ny * T + T/2, vx: (Math.random()-.5)*6, vy: (Math.random()-.5)*6, life: 25, color: '#b88ae0' });
+    render(); return;
+  }
+
+  if (cell.t === DIRT || cell.t === GEM) {
+    if (dur <= 0) { setMsg('Your pickaxe is broken! Walk back up your tunnel, or use the rope.'); shake(); return; }
+    dur--;
+    if (cell.t === GEM) {
+      const g = GEMS[cell.gem];
+      bag.push(cell.gem);
+      if (cell.gem === 'rainbow') {
+        setMsg('WOW!! A secret RAINBOW GEM! (worth 200)');
+        burst(nx, ny, ['#ff3b5c', '#ffb020', '#ffe44d', '#22d36b', '#3b7bff', '#a25bff'], 40);
+      } else {
+        setMsg(`You found a ${g.name}! (worth ${g.points})`);
+        burst(nx, ny, [g.color], 14);
+      }
+    }
+    grid[ny][nx] = { t: EMPTY };
+    if (dur === 0) setMsg('Crack! Your pickaxe just broke. Head back to the surface to fix it.');
+  } else if (cell.t === ROCK) {
+    if (up.smasher && dur >= 3) {
+      dur -= 3; grid[ny][nx] = { t: EMPTY }; setMsg('SMASH! Rock Smasher breaks the boulder.');
+      for (let i = 0; i < 10; i++) sparkles.push({ x: nx * T + T/2, y: ny * T + T/2, vx: (Math.random()-.5)*5, vy: (Math.random()-.5)*5, life: 25, color: '#9aa3ad' });
+    } else {
+      setMsg(up.smasher ? 'Not enough pickaxe left to smash that rock.' : 'Clunk! Boulders are too hard. (The shop sells a Rock Smasher.)');
+      shake(); render(); return;
+    }
+  } else if (cell.t === STONE) {
+    setMsg('This ancient stone is too strong to dig. Look for cracks!'); shake(); render(); return;
+  } else if (cell.t === CRACK) {
+    if (dur <= 0) { setMsg('Your pickaxe is broken! Fix it at the surface first.'); shake(); return; }
+    dur--;
+    const first = !vaults[cell.v].open;
+    vaults[cell.v].open = true;
+    grid[ny][nx] = { t: EMPTY };
+    burst(nx, ny, ['#c9d2e0'], 10);
+    setMsg(first ? 'You found a SECRET PASSAGE! Keep digging...' : 'The cracked stone crumbles away!');
+  } else if (cell.t === BHEART) {
+    grid[ny][nx] = { t: EMPTY };
+    boss.hearts--;
+    burst(nx, ny, ['#ff5ab4', '#ffd1ec'], 30);
+    if (boss.hearts <= 0) {
+      boss.defeated = true;
+      grid[ROWS - 1][5] = { t: CHEST };
+      setMsg('You found the LAST heart! Far below, the Rock Golem crumbles to dust. Its treasure chest is waiting at the bottom!');
+    } else {
+      setMsg(`You found one of the Rock Golem's hearts! ${boss.hearts} left to find.`);
+    }
+  } else if (cell.t === CHEST) {
+    grid[ny][nx] = { t: EMPTY };
+    coins += 500;
+    burst(nx, ny, ['#ffcf2a', '#fff3a0'], 40);
+    setMsg('You opened the Golem\'s treasure chest! +500 coins! Grab a Fresh Cave from the shop to face a new Golem.');
+  } else if (cell.t === LAVA) {
+    if (up.boots) { cell.seen = true; }
+    else if (!cell.seen) {
+      cell.seen = true; if (dur > 0) dur--;
+      hurt('HOT! You dug into a lava pocket!');
+      render(); return;
+    } else { setMsg("That's lava! You need Fire Boots to walk on it."); render(); return; }
+  }
+
+  player.x = nx; player.y = ny;
+  if (atSurface()) arriveSurface();
+  checkBats();
+  render();
+}
+
+function arriveSurface(prefix = '') {
+  let text = prefix;
+  if (bag.length) {
+    const value = bag.reduce((s, g) => s + GEMS[g].points, 0);
+    coins += value;
+    text += `You sold ${bag.length} gem${bag.length > 1 ? 's' : ''} for ${value} coins! Time to shop?`;
+    bag = [];
+  }
+  if (text) setMsg(text);
+  dur = PICK_MAX[up.pick];
+  player.hearts = up.maxHearts;
+}
+
+function hurt(text) {
+  if (player.inv > 0) return;
+  player.hearts--; player.inv = 15; shake();
+  if (player.hearts <= 0) faint();
+  else setMsg(text);
+  render();
+}
+
+// Lose half your gems (rounded down), picked at random
+function dropHalf() {
+  const lost = Math.floor(bag.length / 2);
+  for (let i = 0; i < lost; i++) bag.splice(rand(bag.length), 1);
+  return lost;
+}
+const gemWord = n => `${n} gem${n === 1 ? '' : 's'}`;
+
+function faint() {
+  const lost = dropHalf();
+  player.x = Math.floor(COLS / 2); player.y = 0; player.inv = 15;
+  arriveSurface(`You fainted! The rescue team pulled you out${lost ? ` and you dropped ${gemWord(lost)}` : ''}. `);
+}
+
+function ropeUp() {
+  if (atSurface()) { setMsg("You're already on the surface!"); return; }
+  const lost = dropHalf();
+  player.x = Math.floor(COLS / 2); player.y = 0;
+  arriveSurface(lost ? `You climbed the rope but dropped ${gemWord(lost)} on the way. ` : 'You climbed the rope back up. ');
+  render();
+}
+
+function bossAt(x, y) {
+  return !boss.defeated && x >= boss.x && x <= boss.x + 1 && y >= boss.y && y <= boss.y + 1;
+}
+
+function burst(x, y, colors, n) {
+  for (let i = 0; i < n; i++) sparkles.push({ x: x * T + T/2, y: y * T + T/2, vx: (Math.random()-.5)*7, vy: (Math.random()-.5)*7, life: 32, color: colors[i % colors.length] });
+}
+
+function checkBats() {
+  const b = bats.find(b => b.x === player.x && b.y === player.y);
+  if (!b) return;
+  hurt('A bat bit you! Tap toward a bat to bop it first.');
+  b.stun = 15;
+}
+
+function shake() { shakeT = 8; }
+
+// ---------- World updates ----------
+function tick() {
+  tickCount++;
+  if (player.inv > 0) player.inv--;
+
+  // Boulders: wobble, then fall
+  for (let y = ROWS - 2; y >= 1; y--) {
+    for (let x = 0; x < COLS; x++) {
+      const c = grid[y][x];
+      if (c.t !== ROCK) continue;
+      const below = grid[y + 1][x];
+      const playerBelow = player.x === x && player.y === y + 1;
+      if (below.t === EMPTY && !playerBelow) {
+        if (c.falling) {
+          grid[y + 1][x] = c; grid[y][x] = { t: EMPTY };
+          bats = bats.filter(b => !(b.x === x && b.y === y + 1));
+        } else {
+          c.wobble = (c.wobble || 0) + 1;
+          if (c.wobble >= 3) c.falling = true;
+        }
+      } else if (playerBelow && c.falling) {
+        c.falling = false; c.wobble = 0;
+        hurt('BONK! A boulder fell on you!');
+      } else { c.falling = false; c.wobble = 0; }
+    }
+  }
+
+  // Bats flutter through open tunnels
+  if (tickCount % 4 === 0) {
+    bats.forEach(b => {
+      if (b.stun > 0) { b.stun -= 4; return; }
+      const opts = [[1,0],[-1,0],[0,1],[0,-1]].filter(([dx, dy]) => {
+        const x = b.x + dx, y = b.y + dy;
+        return x >= 0 && x < COLS && y >= 1 && y < ROWS && grid[y][x].t === EMPTY && !bossAt(x, y);
+      });
+      if (!opts.length) return;
+      const dist = Math.abs(b.x - player.x) + Math.abs(b.y - player.y);
+      let choice;
+      if (dist <= 4 && Math.random() < 0.3) {
+        choice = opts.reduce((best, o) => {
+          const d = Math.abs(b.x + o[0] - player.x) + Math.abs(b.y + o[1] - player.y);
+          return d < best.d ? { o, d } : best;
+        }, { o: opts[0], d: 99 }).o;
+      } else choice = opts[rand(opts.length)];
+      b.x += choice[0]; b.y += choice[1];
+    });
+    checkBats();
+  }
+
+  // The boss stomps every few seconds
+  if (boss.stomp > 0) boss.stomp--;
+  if (!boss.defeated && tickCount % 15 === 0) {
+    boss.stomp = 3;
+    const near = player.x >= boss.x - 1 && player.x <= boss.x + 2 && player.y >= boss.y - 1;
+    if (near) hurt('STOMP! The Rock Golem shook the ground!');
+    else if (Math.abs(player.y - boss.y) < 10) shake();
+  }
+
+  if (tickCount % 5 === 0) save();
+  render();
+}
+
+// ---------- Saving ----------
+function save() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ grid, bats, player, coins, bag, dur, up, vaults, boss })); } catch (e) {}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (!d || !d.grid || d.grid.length !== ROWS || !d.boss) return false;
+    ({ grid, bats, player, coins, bag, dur, up, vaults, boss } = d);
+    sparkles = [];
+    return true;
+  } catch (e) { return false; }
+}
+
+// ---------- Shop ----------
+function shopItems() {
+  const items = [];
+  if (up.pick < PICK_COST.length) items.push({
+    name: '⛏️ Stronger Pickaxe', desc: `More digs before it breaks (${PICK_MAX[up.pick]} → ${PICK_MAX[up.pick + 1]})`,
+    cost: PICK_COST[up.pick], buy: () => { up.pick++; dur = PICK_MAX[up.pick]; }
+  });
+  if (up.maxHearts < 5) items.push({
+    name: '❤️ Extra Heart', desc: `Take one more hit (${up.maxHearts} → ${up.maxHearts + 1} hearts)`,
+    cost: HEART_COST[up.maxHearts], buy: () => { up.maxHearts++; player.hearts = up.maxHearts; }
+  });
+  if (!up.smasher) items.push({
+    name: '🔨 Rock Smasher', desc: 'Dig right through boulders (uses 3 digs each)',
+    cost: 200, buy: () => { up.smasher = true; }
+  });
+  if (!up.boots) items.push({
+    name: '🥾 Fire Boots', desc: 'Walk on lava without getting hurt',
+    cost: 300, buy: () => { up.boots = true; }
+  });
+  items.push({
+    name: '🗺️ Fresh Cave', desc: 'A brand-new cave full of gems. You keep your coins and upgrades.',
+    cost: 0, buy: () => { freshCave(); setMsg('A whole new cave to explore!'); }
+  });
+  return items;
+}
+
+function renderShop() {
+  const here = atSurface();
+  document.getElementById('shopNote').textContent = here
+    ? `You have ${coins} coins. What would you like?`
+    : 'Come back up to the grass to sell gems and shop.';
+  const items = shopItems();
+  const box = document.getElementById('shopItems');
+  const html = items.map((it, i) => `
+    <div class="item">
+      <div class="info"><div class="name">${it.name}</div><div class="desc">${it.desc}</div></div>
+      <button class="btn" data-i="${i}" ${(!here || coins < it.cost) ? 'disabled' : ''}>${it.cost ? '🪙 ' + it.cost : 'Free'}</button>
+    </div>`).join('');
+  if (html !== lastShopHtml) { box.innerHTML = html; lastShopHtml = html; }
+}
+let lastShopHtml = '';
+document.getElementById('shopItems').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-i]');
+  if (!btn || btn.disabled) return;
+  const it = shopItems()[+btn.dataset.i];
+  if (!it || !atSurface() || coins < it.cost) return;
+  coins -= it.cost; it.buy();
+  if (it.cost) setMsg(`You bought ${it.name.slice(3)}!`);
+  render(); save();
+});
+
+// ---------- Drawing ----------
+function depthDark(y) { return Math.min(0.45, y / ROWS * 0.5); }
+
+function drawDirt(px, py, shade, y) {
+  const base = 90 + Math.floor(shade * 20);
+  ctx.fillStyle = `rgb(${base + 30}, ${base - 10}, ${base - 50})`;
+  ctx.fillRect(px, py, T, T);
+  ctx.fillStyle = 'rgba(0,0,0,.18)';
+  ctx.fillRect(px + 6, py + 8, 4, 4); ctx.fillRect(px + 24, py + 20, 5, 5); ctx.fillRect(px + 14, py + 30, 3, 3);
+}
+
+function drawGem(cx, cy, g, size) {
+  ctx.fillStyle = g.color;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size); ctx.lineTo(cx + size * 0.8, cy - size * 0.2);
+  ctx.lineTo(cx, cy + size); ctx.lineTo(cx - size * 0.8, cy - size * 0.2); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = g.shine;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size); ctx.lineTo(cx + size * 0.3, cy - size * 0.2); ctx.lineTo(cx - size * 0.3, cy - size * 0.2); ctx.closePath(); ctx.fill();
+}
+
+function drawStone(px, py) {
+  ctx.fillStyle = '#3a3f4b'; ctx.fillRect(px, py, T, T);
+  ctx.fillStyle = '#2a2e37';
+  ctx.fillRect(px, py + 19, T, 2); ctx.fillRect(px + 13, py, 2, 19); ctx.fillRect(px + 28, py + 21, 2, 19);
+}
+
+function drawCrack(px, py) {
+  drawStone(px, py);
+  ctx.strokeStyle = '#d6deea'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(px + 8, py + 6); ctx.lineTo(px + 17, py + 16); ctx.lineTo(px + 12, py + 23);
+  ctx.lineTo(px + 24, py + 30); ctx.lineTo(px + 30, py + 36); ctx.stroke();
+}
+
+function drawHeart(cx, cy, s, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(cx - s / 2, cy - s / 4, s / 2, Math.PI, 0);
+  ctx.arc(cx + s / 2, cy - s / 4, s / 2, Math.PI, 0);
+  ctx.lineTo(cx, cy + s); ctx.closePath(); ctx.fill();
+}
+
+function drawChest(px, py) {
+  ctx.fillStyle = '#24160f'; ctx.fillRect(px, py, T, T);
+  ctx.fillStyle = '#8a4f1d'; ctx.fillRect(px + 5, py + 14, 30, 22);
+  ctx.fillStyle = '#a8642a'; ctx.beginPath(); ctx.roundRect(px + 5, py + 8, 30, 10, 5); ctx.fill();
+  ctx.fillStyle = '#ffcf2a'; ctx.fillRect(px + 5, py + 17, 30, 3); ctx.fillRect(px + 18, py + 17, 5, 8);
+  if (tickCount % 4 < 2) { ctx.fillStyle = '#fff6b0'; ctx.fillRect(px + 30, py + 5, 3, 3); }
+}
+
+function drawBoss(py) {
+  const px = boss.x * T, w = T * 2;
+  const jump = boss.stomp > 1 ? -6 : 0;
+  py += jump;
+  // body
+  ctx.fillStyle = '#6e6a63'; ctx.beginPath(); ctx.roundRect(px + 8, py + 10, w - 16, w - 14, 16); ctx.fill();
+  // arms
+  ctx.fillStyle = '#5a5650';
+  ctx.beginPath(); ctx.roundRect(px - 2, py + 30, 16, 34, 8); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(px + w - 14, py + 30, 16, 34, 8); ctx.fill();
+  // moss and cracks
+  ctx.fillStyle = '#5f8f4a'; ctx.fillRect(px + 18, py + 10, 22, 5); ctx.fillRect(px + 48, py + 12, 12, 4);
+  ctx.strokeStyle = '#4a4741'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(px + 50, py + 50); ctx.lineTo(px + 56, py + 60); ctx.lineTo(px + 52, py + 68); ctx.stroke();
+  // eyes
+  ctx.fillStyle = boss.stomp ? '#ff3b2a' : '#ffb020';
+  ctx.fillRect(px + 24, py + 28, 10, 7); ctx.fillRect(px + 46, py + 28, 10, 7);
+  // mouth
+  ctx.fillStyle = '#2a2622'; ctx.fillRect(px + 28, py + 46, 24, 6);
+  // boss hearts floating above
+  for (let i = 0; i < boss.max; i++) {
+    drawHeart(px + 22 + i * 18, py - 14 - jump, 7, i < boss.hearts ? '#ff5ab4' : '#3a2a33');
+  }
+}
+
+function drawLava(px, py) {
+  ctx.fillStyle = '#c2280f'; ctx.fillRect(px, py, T, T);
+  ctx.fillStyle = '#ff7a1a';
+  ctx.fillRect(px + 4, py + 6, T - 8, T - 12);
+  ctx.fillStyle = '#ffd23a';
+  const b = (tickCount + px) % 6;
+  ctx.beginPath(); ctx.arc(px + 12, py + 14 + b, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(px + 27, py + 26 - b, 3, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawRock(px, py, c) {
+  let ox = 0;
+  if (c.wobble && !c.falling) ox = (tickCount % 2 ? 2 : -2);
+  ctx.fillStyle = '#7d8590'; ctx.beginPath(); ctx.roundRect(px + 2 + ox, py + 2, T - 4, T - 4, 10); ctx.fill();
+  ctx.fillStyle = '#9aa3ad'; ctx.fillRect(px + 8 + ox, py + 8, 10, 6);
+  ctx.fillStyle = '#5c636b'; ctx.fillRect(px + 22 + ox, py + 26, 8, 5);
+}
+
+function drawBat(b, py) {
+  const cx = b.x * T + T/2, cy = py + T/2;
+  const flap = tickCount % 2 ? -6 : 4;
+  ctx.fillStyle = '#4b2a6b';
+  ctx.beginPath(); ctx.moveTo(cx - 4, cy); ctx.lineTo(cx - 17, cy + flap); ctx.lineTo(cx - 9, cy + 5); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx + 4, cy); ctx.lineTo(cx + 17, cy + flap); ctx.lineTo(cx + 9, cy + 5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#6a3d94'; ctx.beginPath(); ctx.arc(cx, cy + 1, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ff4d4d'; ctx.fillRect(cx - 4, cy - 1, 3, 3); ctx.fillRect(cx + 1, cy - 1, 3, 3);
+}
+
+function drawPlayer(py) {
+  if (player.inv > 0 && player.inv % 2) return; // blink when hurt
+  const px = player.x * T, cx = px + T/2;
+  ctx.fillStyle = '#2f6fd6'; ctx.fillRect(px + 12, py + 18, 16, 14);
+  ctx.fillStyle = up.boots ? '#d9452b' : '#3b2a1a'; ctx.fillRect(px + 12, py + 32, 6, 6); ctx.fillRect(px + 22, py + 32, 6, 6);
+  ctx.fillStyle = '#f2c38b'; ctx.beginPath(); ctx.arc(cx, py + 13, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffcf2a'; ctx.beginPath(); ctx.arc(cx, py + 11, 8, Math.PI, 0); ctx.fill();
+  ctx.fillRect(cx - 9, py + 10, 18, 3);
+  ctx.fillStyle = '#fffbe0'; ctx.beginPath(); ctx.arc(cx + player.face * 5, py + 7, 2.5, 0, Math.PI * 2); ctx.fill();
+  const hx = cx + player.face * 10;
+  ctx.strokeStyle = '#8a5a2b'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(hx, py + 32); ctx.lineTo(hx, py + 16); ctx.stroke();
+  ctx.strokeStyle = dur > 0 ? (up.smasher ? '#ffcf2a' : '#b8c2cc') : '#6b4a2e';
+  ctx.beginPath(); ctx.moveTo(hx - 6, py + 18); ctx.quadraticCurveTo(hx, py + 13, hx + 6, py + 18); ctx.stroke();
+}
+
+function draw() {
+  const camY = Math.max(0, Math.min(ROWS - VIEW, player.y - 5));
+  ctx.save();
+  if (shakeT > 0) { ctx.translate((Math.random() - .5) * 6, 0); shakeT--; }
+  for (let y = camY; y < camY + VIEW; y++) {
+    const py = (y - camY) * T;
+    for (let x = 0; x < COLS; x++) {
+      const c = grid[y][x], px = x * T;
+      if (c.t === SKY) {
+        ctx.fillStyle = '#7ec8ff'; ctx.fillRect(px, py, T, T);
+        ctx.fillStyle = '#4caf50'; ctx.fillRect(px, py + T - 6, T, 6);
+        continue;
+      }
+      if (c.t === EMPTY) { ctx.fillStyle = '#24160f'; ctx.fillRect(px, py, T, T); }
+      else if (c.t === DIRT) drawDirt(px, py, c.shade, y);
+      else if (c.t === ROCK) { ctx.fillStyle = '#24160f'; ctx.fillRect(px, py, T, T); drawRock(px, py, c); }
+      else if (c.t === GEM) { drawDirt(px, py, c.shade, y); if (!GEMS[c.gem].hidden) drawGem(px + T/2, py + T/2, GEMS[c.gem], 10); }
+      else if (c.t === STONE) drawStone(px, py);
+      else if (c.t === CRACK) drawCrack(px, py);
+      else if (c.t === BHEART) {
+        if (vaults[c.v].open) {
+          ctx.fillStyle = '#2b1426'; ctx.fillRect(px, py, T, T);
+          drawHeart(px + T/2, py + T/2 - 2, 9 + (tickCount % 4 < 2 ? 1 : 0), '#ff5ab4');
+        } else drawStone(px, py);
+      }
+      else if (c.t === CHEST) drawChest(px, py);
+      else if (c.t === LAVA) {
+        if (c.seen) drawLava(px, py);
+        else {
+          drawDirt(px, py, c.shade, y);
+          ctx.fillStyle = '#ff8a2a';
+          ctx.fillRect(px + 9, py + 22, 3, 3); ctx.fillRect(px + 27, py + 11, 3, 3); ctx.fillRect(px + 20, py + 31, 2, 2);
+        }
+      }
+      if (c.t !== LAVA || !c.seen) { ctx.fillStyle = `rgba(0,0,0,${depthDark(y)})`; ctx.fillRect(px, py, T, T); }
+    }
+  }
+  if (!boss.defeated && boss.y + 1 >= camY) drawBoss((boss.y - camY) * T);
+  bats.forEach(b => { if (b.y >= camY && b.y < camY + VIEW) drawBat(b, (b.y - camY) * T); });
+  drawPlayer((player.y - camY) * T);
+  sparkles.forEach(s => { ctx.globalAlpha = Math.max(0, s.life / 30); ctx.fillStyle = s.color; ctx.fillRect(s.x, s.y - camY * T, 4, 4); });
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function render() {
+  const max = PICK_MAX[up.pick];
+  document.getElementById('hearts').textContent = '❤️'.repeat(Math.max(0, player.hearts)) + '🤍'.repeat(up.maxHearts - Math.max(0, player.hearts));
+  document.getElementById('pickNum').textContent = `${dur}/${max}`;
+  const pct = dur / max;
+  const fill = document.getElementById('pickFill');
+  fill.style.width = (pct * 100) + '%';
+  fill.style.background = pct > 0.5 ? '#6fd36f' : pct > 0.2 ? '#ffcf2a' : '#ff5a4a';
+  document.getElementById('bag').textContent = bag.length;
+  document.getElementById('coins').textContent = coins;
+  document.getElementById('depth').textContent = player.y * 2;
+  document.getElementById('bossPill').textContent = boss.defeated ? 'Golem defeated! 🏆' : 'Golem ' + '💗'.repeat(boss.hearts) + '🖤'.repeat(boss.max - boss.hearts);
+  renderShop();
+  draw();
+}
+
+function animate() {
+  if (sparkles.length || shakeT > 0) {
+    sparkles.forEach(s => { s.x += s.vx; s.y += s.vy; s.life--; });
+    sparkles = sparkles.filter(s => s.life > 0);
+    draw();
+  }
+  requestAnimationFrame(animate);
+}
+
+// ---------- Controls ----------
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'arrowup' || k === 'w') move(0, -1);
+  else if (k === 'arrowdown' || k === 's') move(0, 1);
+  else if (k === 'arrowleft' || k === 'a') move(-1, 0);
+  else if (k === 'arrowright' || k === 'd') move(1, 0);
+  else return;
+  e.preventDefault();
+});
+const bind = (id, dx, dy) => {
+  const b = document.getElementById(id);
+  b.addEventListener('touchstart', e => { e.preventDefault(); move(dx, dy); }, { passive: false });
+  b.addEventListener('click', () => move(dx, dy));
+};
+bind('up', 0, -1); bind('down', 0, 1); bind('left', -1, 0); bind('right', 1, 0);
+document.getElementById('rope').addEventListener('click', ropeUp);
+let resetArmed = false;
+const resetBtn = document.getElementById('reset');
+resetBtn.addEventListener('click', () => {
+  if (!resetArmed) {
+    resetArmed = true; resetBtn.textContent = 'Tap again to erase your saved game';
+    setTimeout(() => { resetArmed = false; resetBtn.textContent = 'Start completely over'; }, 3000);
+    return;
+  }
+  resetArmed = false; resetBtn.textContent = 'Start completely over';
+  newGame(); save();
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+window.addEventListener('pagehide', save);
+
+let sx = null, sy = null;
+canvas.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+canvas.addEventListener('touchend', e => {
+  if (sx === null) return;
+  const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) > 20) {
+    if (Math.abs(dx) > Math.abs(dy)) move(Math.sign(dx), 0); else move(0, Math.sign(dy));
+  }
+  sx = null;
+});
+
+if (load()) { render(); setMsg('Welcome back! Your game was saved.'); }
+else newGame();
+setInterval(tick, 200);
+animate();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space Escape Math 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: playful, brave, kid-sized; big buttons, short words
+   IDEA: a spaceship corridor seen side-on, blowing up behind you while meteorites rain down
+   PICTURE: running astronaut, locked doors, a wall of explosions chasing, a meteorite diving at each door
+   COLOUR and TYPE: deep hull navy, orange suit, mint unlock green, alarm red, fire orange/gold; Fredoka
+   LAYOUT: stage on top, door keypad underneath, stacks on phones */
+:root{color-scheme:dark;--hull:#0f1530;--hull2:#18214a;--panel:#232e63;--ink:#f3f6ff;--dim:#a9b3dd;--suit:#ff8a2b;--mint:#3ee8a5;--red:#ff4d5e;--gold:#ffd23f}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--hull);color:var(--ink);font:17px/1.5 Fredoka,system-ui,sans-serif;overflow-x:clip}
+.wrap{max-width:960px;margin:0 auto;padding:16px max(3vw,12px) 32px}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.05;margin:4px 0 12px;font-weight:700}
+.bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:10px;color:var(--dim)}
+.lives{color:var(--red);font-size:24px;letter-spacing:3px;line-height:1}
+.lives .lost{color:#3b4887}
+.dots{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.dot{width:14px;height:14px;border-radius:50%;background:#2c376e;border:2px solid #3b4887}
+.dot.ok{background:var(--mint);border-color:var(--mint)}
+.dot.star{background:var(--gold);border-color:var(--gold)}
+.dot.now{border-color:var(--ink)}
+
+/* stage */
+.stage{position:relative;height:330px;overflow:hidden;border-radius:18px;background:#0a0f24;border:3px solid #2c376e}
+.stage.alarm{border-color:var(--red);box-shadow:0 0 18px rgba(255,77,94,.55)}
+.stage.quake{animation:quake .5s}
+@keyframes quake{20%{transform:translate(-8px,4px)}40%{transform:translate(7px,-5px)}60%{transform:translate(-5px,3px)}80%{transform:translate(4px,-2px)}}
+.world{position:absolute;top:0;left:0;height:100%;will-change:transform;
+ background:linear-gradient(#0a0f24 0 30px,transparent 30px),repeating-linear-gradient(90deg,#1b2552 0 118px,#141c42 118px 120px),#1b2552}
+.world::before{content:"";position:absolute;left:0;right:0;top:30px;height:10px;background:repeating-linear-gradient(90deg,#ff6a5a 0 40px,transparent 40px 120px);opacity:.6;filter:blur(1px)}
+.world::after{content:"";position:absolute;left:0;right:0;bottom:0;height:70px;background:repeating-linear-gradient(90deg,#3a4373 0 58px,#2b3360 58px 60px);border-top:6px solid #56609a}
+.window{position:absolute;top:80px;width:90px;height:60px;border-radius:30px;overflow:hidden;background:radial-gradient(circle at 30% 30%,#fff 0 1px,transparent 2px),radial-gradient(circle at 70% 60%,#fff 0 1px,transparent 2px),radial-gradient(circle at 50% 20%,#cde 0 1px,transparent 2px),#050816;border:5px solid #56609a}
+.window::after{content:"";position:absolute;width:30px;height:3px;border-radius:2px;background:linear-gradient(90deg,#ffd23f,rgba(255,106,26,0));transform:rotate(-30deg);animation:streak 2.6s linear infinite;animation-delay:var(--d,0s)}
+@keyframes streak{0%{left:100%;top:0}35%,100%{left:-40%;top:46px}}
+.door{position:absolute;bottom:70px;width:84px;height:200px}
+.door .frame{position:absolute;inset:-10px -10px 0;border:8px solid #56609a;border-bottom:0;border-radius:12px 12px 0 0;background:#0a0f24}
+.door .half{position:absolute;left:0;right:0;height:50%;background:repeating-linear-gradient(135deg,var(--c) 0 14px,#2a2a2a 14px 28px);transition:transform .7s cubic-bezier(.6,0,.3,1)}
+.door .top{top:0;border-bottom:3px solid #111}
+.door .bot{bottom:0}
+.door.open .top{transform:translateY(-102%)}
+.door.open .bot{transform:translateY(102%)}
+.door .lamp{position:absolute;top:-34px;left:50%;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--red);box-shadow:0 0 12px var(--red)}
+.door.open .lamp{background:var(--mint);box-shadow:0 0 12px var(--mint)}
+.door .num{position:absolute;top:-34px;left:-6px;font-weight:700;font-size:14px;color:var(--dim)}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pod{position:absolute;bottom:70px;width:170px;height:190px}
+.pod.go{animation:launch 1.6s ease-in forwards}
+@keyframes launch{30%{transform:translateY(6px)}100%{transform:translate(500px,-420px) rotate(-20deg)}}
+
+.astro{position:absolute;bottom:68px;width:70px;height:104px;z-index:4}
+.astro .legL,.astro .legR,.astro .armL,.astro .armR{transform-box:fill-box;transform-origin:50% 0}
+.astro.run .legL{animation:swing .35s infinite alternate}
+.astro.run .legR{animation:swing .35s infinite alternate-reverse}
+.astro.run .armL{animation:swing .35s infinite alternate-reverse}
+.astro.run .armR{animation:swing .35s infinite alternate}
+.astro.run .body{animation:bob .18s infinite alternate}
+@keyframes swing{from{transform:rotate(-30deg)}to{transform:rotate(30deg)}}
+@keyframes bob{to{transform:translateY(-3px)}}
+.astro.hide{opacity:0;transition:opacity .3s}
+
+/* the ship blowing up behind you */
+.blast{position:absolute;top:0;bottom:0;left:0;z-index:2;pointer-events:none;background:linear-gradient(90deg,#140404,#3d0b05 50%,#a8230b 80%,#ff6a1a 93%,#ffc83d)}
+.blast[hidden]{display:none}
+.blast i{position:absolute;right:-36px;width:76px;height:76px;border-radius:50%;background:radial-gradient(circle,#fff3b0 0 18%,#ffb02e 42%,rgba(255,90,20,0) 70%);animation:flick .3s ease-in-out infinite alternate}
+.blast i:nth-child(1){top:-10px}
+.blast i:nth-child(2){top:50px;animation-delay:-.1s;width:90px;height:90px}
+.blast i:nth-child(3){top:120px;animation-delay:-.2s}
+.blast i:nth-child(4){top:185px;animation-delay:-.05s;width:96px;height:96px}
+.blast i:nth-child(5){top:255px;animation-delay:-.15s}
+@keyframes flick{to{transform:scale(1.35) translateX(8px)}}
+#fx{position:absolute;inset:0;z-index:3;pointer-events:none}
+.boom{position:absolute;border-radius:50%;background:radial-gradient(circle,#fffbe0 0 12%,#ffd23f 28%,#ff7a1f 50%,rgba(255,60,20,0) 70%);animation:boom .6s ease-out forwards}
+@keyframes boom{from{transform:scale(.2);opacity:1}to{transform:scale(1.4);opacity:0}}
+.bit{position:absolute;width:7px;height:7px;border-radius:2px;background:#8a93c4;animation:bit .8s ease-out forwards}
+@keyframes bit{to{transform:translate(var(--dx),var(--dy)) rotate(260deg);opacity:0}}
+
+/* the meteorite diving at the ship */
+.meteor{position:absolute;left:0;top:0;width:120px;height:120px;transform-origin:0 0;z-index:5;pointer-events:none}
+.meteor .glow{transform-box:fill-box;transform-origin:center;animation:flick .2s infinite alternate}
+.flash{position:absolute;inset:0;z-index:6;background:#fff3c4;opacity:0;pointer-events:none}
+.flash.on{animation:flash .6s ease-out}
+@keyframes flash{from{opacity:.9}to{opacity:0}}
+
+/* overlay screens */
+.screen{position:absolute;inset:0;z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:16px;background:rgba(8,12,32,.84)}
+.screen[hidden]{display:none}
+.screen h2{font-size:clamp(26px,5vw,38px);line-height:1.05;margin:0}
+.screen p{margin:0;color:var(--dim);max-width:38ch}
+.modes{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+button{font:inherit;font-weight:600;color:var(--ink);background:var(--panel);border:3px solid #3b4887;border-radius:14px;min-height:48px;padding:6px 18px;cursor:pointer;touch-action:manipulation}
+button:hover{border-color:var(--dim)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button.pick{background:var(--suit);border-color:var(--suit);color:#1b1000}
+button.big{background:var(--mint);border-color:var(--mint);color:#04261a;font-size:22px;padding:8px 34px}
+
+/* keypad console */
+.console{margin-top:14px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:center;background:var(--hull2);border:3px solid #2c376e;border-radius:18px;padding:16px}
+.q{text-align:center}
+.q .lbl{color:var(--dim);font-size:16px}
+.lvl{display:inline-block;padding:0 10px;border-radius:999px;font-size:14px;font-weight:600;color:#10162f;background:var(--c,#ccc);margin-left:6px}
+.q .sum{font-size:clamp(36px,7.5vw,60px);font-weight:700;line-height:1.1;white-space:nowrap}
+.q .ans{display:inline-block;min-width:1.8em;border-bottom:5px solid var(--gold);color:var(--gold)}
+.q .msg{min-height:1.6em;font-size:18px;font-weight:600}
+.msg.good{color:var(--mint)}.msg.bad{color:var(--red)}
+.hint{color:var(--dim);font-size:16px;min-height:1.5em}
+#count{color:var(--gold);font-size:20px;display:inline-block;min-width:1.4em}
+.meter{height:12px;border-radius:6px;background:#2c376e;overflow:hidden;margin:6px auto 0;max-width:260px}
+.meter i{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--gold));width:100%}
+.pad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pad button{font-size:24px;min-height:56px;padding:0}
+.pad .enter{background:var(--mint);border-color:var(--mint);color:#04261a}
+.pad .clr{color:var(--dim)}
+.console.off{opacity:.45;pointer-events:none}
+.foot{color:var(--dim);font-size:14px;margin-top:12px}
+@media(max-width:600px){.console{grid-template-columns:minmax(0,1fr)}.stage{height:290px}}
+@media(prefers-reduced-motion:reduce){.astro.run *,.blast i,.window::after,.meteor .glow{animation:none!important}.door .half{transition-duration:.01s}.boom,.bit,.flash.on,.stage.quake{animation-duration:.01s!important}}
+</style>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Space Escape 2">
+<meta name="theme-color" content="#0f1530">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="../icons/space2-180.png">
+<link rel="icon" type="image/png" href="../icons/space2-180.png">
+<style>.titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.home{color:#a9b3dd;text-decoration:none;font-weight:600;border:2px solid #3b4887;border-radius:12px;padding:6px 12px;min-height:44px;display:inline-flex;align-items:center}button{touch-action:manipulation}</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="titlebar"><h1>Space Escape Math 2</h1><a class="home" href="../">← All games</a></div>
+  <div class="bar"><span class="lives" id="lives" aria-label="Lives"></span><span id="doorLabel">Door 1 of 20</span><div class="dots" id="dots"></div></div>
+
+  <div class="stage" id="stage">
+    <div class="world" id="world"></div>
+    <div class="blast" id="blast" hidden><i></i><i></i><i></i><i></i><i></i></div>
+    <div id="fx"></div>
+    <svg class="astro" id="astro" viewBox="0 0 70 104" aria-label="Astronaut">
+      <g class="legL"><rect x="22" y="66" width="11" height="30" rx="5" fill="#e06d12"/><rect x="19" y="90" width="17" height="10" rx="4" fill="#3a3f5c"/></g>
+      <g class="armR"><rect x="45" y="40" width="10" height="26" rx="5" fill="#e06d12"/></g>
+      <g class="body">
+        <rect x="8" y="38" width="14" height="26" rx="5" fill="#9aa3c7"/>
+        <rect x="18" y="36" width="34" height="36" rx="12" fill="#ff8a2b"/>
+        <rect x="26" y="46" width="16" height="10" rx="3" fill="#ffd23f"/>
+        <circle cx="35" cy="22" r="20" fill="#f3f6ff"/>
+        <rect x="23" y="13" width="28" height="18" rx="9" fill="#3ee8a5"/>
+        <rect x="27" y="16" width="8" height="5" rx="2.5" fill="#d8fff0" opacity=".8"/>
+      </g>
+      <g class="legR"><rect x="37" y="66" width="11" height="30" rx="5" fill="#ff8a2b"/><rect x="35" y="90" width="17" height="10" rx="4" fill="#3a3f5c"/></g>
+      <g class="armL"><rect x="14" y="40" width="10" height="26" rx="5" fill="#ff8a2b"/></g>
+    </svg>
+    <svg class="meteor" id="meteor" viewBox="0 0 120 120" style="display:none" aria-hidden="true">
+      <defs><linearGradient id="tailG" x1="1" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffd23f" stop-opacity="0"/><stop offset=".55" stop-color="#ff8a2b" stop-opacity=".75"/><stop offset="1" stop-color="#fff3b0"/>
+      </linearGradient></defs>
+      <path d="M18 74 L118 2 L46 102 Z" fill="url(#tailG)"/>
+      <circle class="glow" cx="32" cy="88" r="25" fill="#ff7a1f" opacity=".55"/>
+      <path d="M14 86 Q15 70 31 69 Q48 68 51 85 Q51 103 34 107 Q15 105 14 86Z" fill="#6e5a4c"/>
+      <circle cx="26" cy="82" r="5" fill="#54443a"/><circle cx="39" cy="95" r="4" fill="#54443a"/><circle cx="40" cy="78" r="3" fill="#54443a"/>
+    </svg>
+    <div class="flash" id="flash"></div>
+
+    <div class="screen" id="startScreen">
+      <h2>Alarm! Meteorites are hitting the ship!</h2>
+      <p>The ship is blowing up behind you, so run for the escape pod! Every door is locked. Solve the math before the timer runs out, or a meteorite hits. You have 2 lives.</p>
+      <div class="modes" id="modes">
+        <button data-mode="add" class="pick">Adding +</button>
+        <button data-mode="sub">Taking away −</button>
+        <button data-mode="mix">Both</button>
+      </div>
+      <button class="big" id="startBtn">Start running!</button>
+    </div>
+    <div class="screen" id="winScreen" hidden>
+      <h2>You escaped!</h2>
+      <p id="winText"></p>
+      <button class="big" id="againBtn">Play again</button>
+    </div>
+    <div class="screen" id="overScreen" hidden>
+      <h2>Oh no! Too many meteorites!</h2>
+      <p id="overText"></p>
+      <button class="big" id="retryBtn">Try again</button>
+    </div>
+  </div>
+
+  <div class="console off" id="console">
+    <div class="q">
+      <div class="lbl"><span id="qLabel">Door is locked</span><span class="lvl" id="lvl"></span></div>
+      <div class="sum"><span id="qText">? + ?</span> = <span class="ans" id="ans">&nbsp;</span></div>
+      <div class="msg" id="msg"></div>
+      <div class="hint" id="hint"></div>
+      <div class="lbl">Meteorite hits in <b id="count"></b></div>
+      <div class="meter"><i id="meter"></i></div>
+    </div>
+    <div class="pad" id="pad"></div>
+  </div>
+  <p class="foot">Type with the keypad or your keyboard. Gold dot = opened on the first try without a meteorite hit.</p>
+</div>
+
+<script>
+{
+// ===== SETTINGS: You can change these! =====
+const MAX = 40;            // biggest number in any problem
+const DOORS = 20;          // how many doors before the escape pod
+const SPEED = 5;           // how fast the astronaut runs
+const GAP = 480;           // space between doors
+const TIMER_SECONDS = 15;  // seconds at each door before a meteorite hits (smaller = scarier)
+const LIVES = 2;           // meteorite hits you can take before starting over
+const WRONG_PENALTY = 2;   // seconds lost from the timer for a wrong answer
+// ============================================
+
+const $ = id => document.getElementById(id);
+const world = $('world'), stage = $('stage'), astro = $('astro'), meteor = $('meteor'), blast = $('blast'), fx = $('fx');
+const LEVELS = [['Easy','#3ee8a5'],['Medium','#7fd3ff'],['Tricky','#ffd23f'],['Hard','#ff8a2b']];
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let mode = 'add', cam = 0, goal = 0, stops = [], idx = 0, state = 'idle', lastT = 0;
+let problem = null, typed = '', tries = 0, hitHere = false, gold = [], last = '';
+let lives = LIVES, timeLeft = TIMER_SECONDS, heat = 0, boomIn = 0, audio;
+
+function beep(freq, dur, type){
+  try{
+    audio = audio || new (window.AudioContext||window.webkitAudioContext)();
+    const o = audio.createOscillator(), gn = audio.createGain();
+    o.type = type || 'sine';
+    o.frequency.value = freq; o.connect(gn); gn.connect(audio.destination);
+    gn.gain.setValueAtTime(.12, audio.currentTime);
+    gn.gain.exponentialRampToValueAtTime(.001, audio.currentTime + dur);
+    o.start(); o.stop(audio.currentTime + dur);
+  }catch(e){}
+}
+const boomSound = () => { beep(90, .5, 'sawtooth'); beep(50, .8, 'square'); };
+
+const rand = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+const pickOp = () => mode === 'mix' ? (Math.random() < .5 ? '+' : '−') : (mode === 'add' ? '+' : '−');
+const carries = (a, b) => a % 10 + b % 10 >= 10;   // like 17 + 8
+const borrows = (a, b) => a % 10 < b % 10;         // like 32 − 7
+
+// How hard is door i? 0 = first door, 1 = last door
+const progress = i => DOORS > 1 ? i / (DOORS - 1) : 1;
+const levelOf = i => LEVELS[Math.min(3, Math.floor(progress(i) * 4))];
+// Biggest number for door i: starts at 10 and climbs to MAX
+const capOf = i => Math.round(10 + (MAX - 10) * progress(i));
+
+function twoNumber(lo, cap, tricky){
+  const op = pickOp();
+  for(let n = 0; n < 60; n++){
+    if(op === '+'){
+      const s = rand(Math.max(2, lo), cap), a = rand(1, s - 1), b = s - a;
+      if(!tricky || carries(a, b) || n > 50) return {a, b, op, text:`${a} + ${b}`, answer:s};
+    }else{
+      const a = rand(Math.max(2, lo), cap), b = rand(1, a - 1);
+      if(!tricky || borrows(a, b) || n > 50) return {a, b, op, text:`${a} − ${b}`, answer:a - b};
+    }
+  }
+}
+
+function doorProblem(i){
+  const cap = capOf(i), t = progress(i);
+  return twoNumber(Math.floor(cap / 2), cap, t >= .5 && Math.random() < .6);
+}
+
+function fresh(make){
+  let p;
+  do{ p = make(); }while(p.text === last);
+  last = p.text;
+  return p;
+}
+
+function hintFor(p){
+  if(p.op === '+') return p.b <= 10 ? `Start at ${p.a} and count up ${p.b}.`
+    : `Try ${p.a} + 10 = ${p.a + 10} first, then add ${p.b - 10} more.`;
+  return p.b <= 10 ? `Start at ${p.a} and count back ${p.b}.`
+    : `Try ${p.a} − 10 = ${p.a - 10} first, then take away ${p.b - 10} more.`;
+}
+
+function build(){
+  const start = 520;
+  stops = [];
+  let html = '';
+  for(let i = 0; i < DOORS; i++){
+    const x = start + i * GAP;
+    stops.push({type:'door', x, at:x - 74});
+    html += `<div class="window" style="left:${x - 260}px;--d:${(-Math.random() * 2.6).toFixed(2)}s"></div>
+      <div class="door" id="door${i}" style="left:${x}px;--c:${levelOf(i)[1]}"><div class="frame"></div>
+      <div class="half top"></div><div class="half bot"></div><span class="lamp"></span><span class="num">${i + 1}</span></div>`;
+  }
+  const px = start + DOORS * GAP + 120;
+  stops.push({type:'pod', x:px, at:px + 50});
+  html += `<div class="window" style="left:${px - 260}px"></div>
+    <svg class="pod" id="pod" style="left:${px}px" viewBox="0 0 170 190">
+    <path d="M20 170 Q20 40 85 10 Q150 40 150 170 Z" fill="#e9ecf8"/>
+    <path d="M150 170 Q150 60 110 26 Q140 70 138 170Z" fill="#b9c0dd"/>
+    <circle cx="85" cy="80" r="26" fill="#3ee8a5" stroke="#56609a" stroke-width="7"/>
+    <rect x="20" y="150" width="130" height="20" fill="#ff8a2b"/>
+    <path d="M20 170 L0 188 L40 170Z M150 170 L170 188 L130 170Z" fill="#ff4d5e"/></svg>`;
+  world.innerHTML = html;
+  world.style.width = (px + 900) + 'px';
+}
+
+function astroX(){ const w = stage.clientWidth; return Math.max(130, Math.min(w * .38, w - 300)); }
+
+function place(){
+  const ax = astroX(), W = stage.clientWidth;
+  world.style.transform = `translateX(${-cam}px)`;
+  astro.style.left = ax + 'px';
+  // heat = 0: explosions far behind, heat = 1: right on your heels
+  const bx = -40 + (ax + 30) * heat;
+  blast.hidden = bx <= 0;
+  blast.style.width = Math.max(0, bx) + 'px';
+  // the meteorite dives from the top right toward the ceiling above you
+  if(state === 'stop'){
+    const p = Math.min(1, Math.max(0, 1 - timeLeft / TIMER_SECONDS)), e = p * p;
+    const sx = W + 40, sy = -70, ex = ax + 30, ey = 30;
+    const x = sx + (ex - sx) * e, y = sy + (ey - sy) * e, s = .45 + .75 * e;
+    meteor.style.display = '';
+    meteor.style.transform = `translate(${x - 32 * s}px,${y - 88 * s}px) scale(${s})`;
+  }else meteor.style.display = 'none';
+  const frac = Math.max(0, Math.min(1, timeLeft / TIMER_SECONDS));
+  $('meter').style.width = Math.round(frac * 100) + '%';
+  $('count').textContent = state === 'stop' ? Math.ceil(timeLeft) : '';
+  stage.classList.toggle('alarm', state === 'stop' && timeLeft < 5);
+  return bx;
+}
+
+function loop(t){
+  const dt = Math.min(50, t - (lastT || t)); lastT = t;
+  let target = heat;
+  if(state === 'run'){
+    cam = Math.min(goal, cam + SPEED * dt / 16.7);
+    target = .35;
+    if(cam >= goal) arrive();
+  }else if(state === 'stop'){
+    timeLeft -= dt / 1000;
+    target = .35 + .6 * (1 - timeLeft / TIMER_SECONDS);
+    if(timeLeft <= 0) hit();
+  }else if(state === 'escape') target = .6;
+  else if(state === 'win' || state === 'over') target = 3;
+  else if(state === 'idle') target = 0;
+  heat += (target - heat) * Math.min(1, dt / 300);
+  const bx = place();
+  if(!calm && bx > 0 && state !== 'idle'){
+    boomIn -= dt;
+    if(boomIn <= 0){
+      const H = stage.clientHeight, big = state === 'win' || state === 'over';
+      spawnBoom(bx - rand(0, big ? 400 : 90), rand(20, H - 80), rand(50, big ? 150 : 110));
+      boomIn = big ? rand(50, 120) : rand(220, 520);
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+function spawnBoom(x, y, size){
+  const b = document.createElement('div');
+  b.className = 'boom';
+  b.style.cssText = `left:${x - size / 2}px;top:${y - size / 2}px;width:${size}px;height:${size}px`;
+  b.addEventListener('animationend', () => b.remove());
+  fx.appendChild(b);
+  for(let i = 0; i < 3; i++){
+    const d = document.createElement('i');
+    d.className = 'bit';
+    d.style.cssText = `left:${x}px;top:${y}px;--dx:${rand(-70, 70)}px;--dy:${rand(-80, 40)}px`;
+    d.addEventListener('animationend', () => d.remove());
+    fx.appendChild(d);
+  }
+}
+
+function flash(){ const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+function quake(){ stage.classList.remove('quake'); void stage.offsetWidth; stage.classList.add('quake'); }
+
+function dots(){
+  let html = '';
+  for(let i = 0; i < DOORS; i++){
+    let c = 'dot';
+    if(i < idx) c += gold[i] ? ' star' : ' ok'; else if(i === idx) c += ' now';
+    html += `<span class="${c}"></span>`;
+  }
+  $('dots').innerHTML = html;
+  $('doorLabel').textContent = idx < DOORS ? `Door ${idx + 1} of ${DOORS}` : 'Escape pod!';
+}
+
+function drawLives(){
+  $('lives').innerHTML = Array.from({length: LIVES}, (_, i) =>
+    `<span class="${i < lives ? '' : 'lost'}">♥</span>`).join('');
+  $('lives').setAttribute('aria-label', `${lives} lives left`);
+}
+
+function run(){
+  state = 'run';
+  astro.classList.add('run');
+  $('console').classList.add('off');
+  goal = stops[idx].at - astroX();
+}
+
+function ask(){
+  problem = fresh(() => doorProblem(idx));
+  typed = ''; tries = 0;
+  const [name, col] = levelOf(idx);
+  $('qLabel').textContent = `Door ${idx + 1} is locked`;
+  $('lvl').textContent = name; $('lvl').style.setProperty('--c', col);
+  $('qText').textContent = problem.text;
+  $('msg').textContent = ''; $('msg').className = 'msg';
+  $('hint').textContent = '';
+  showTyped();
+  $('console').classList.remove('off');
+  state = 'stop';
+}
+
+function arrive(){
+  astro.classList.remove('run');
+  if(stops[idx].type === 'pod'){ escape(); return; }
+  hitHere = false;
+  timeLeft = TIMER_SECONDS;
+  ask();
+}
+
+// The timer ran out: a meteorite smashes into the ship
+function hit(){
+  state = 'hit'; timeLeft = 0; hitHere = true;
+  lives--; drawLives();
+  const ax = astroX();
+  spawnBoom(ax + 30, 40, 170); spawnBoom(ax + 70, 90, 120); spawnBoom(ax - 10, 70, 110);
+  flash(); quake(); boomSound();
+  $('msg').className = 'msg bad';
+  if(lives <= 0){
+    $('msg').textContent = 'BOOM! The ship is breaking apart!';
+    setTimeout(gameOver, 700);
+    return;
+  }
+  $('msg').textContent = `BOOM! A meteorite hit! ${lives} ${lives === 1 ? 'life' : 'lives'} left. Keep solving!`;
+  $('hint').textContent = hintFor(problem);
+  setTimeout(() => { timeLeft = TIMER_SECONDS; state = 'stop'; }, 900);
+}
+
+function gameOver(){
+  state = 'over'; problem = null;
+  $('console').classList.add('off');
+  astro.classList.remove('run'); astro.classList.add('hide');
+  boomSound();
+  setTimeout(() => {
+    $('overText').textContent = `You made it through ${idx} of ${DOORS} doors. Try again, you can do it!`;
+    $('overScreen').hidden = false;
+  }, 1500);
+}
+
+function showTyped(){ $('ans').innerHTML = typed || '&nbsp;'; }
+
+function press(k){
+  if(!problem || state !== 'stop') return;
+  if(k === 'C') typed = '';
+  else if(k === 'OK'){ check(); return; }
+  else if(typed.length < 2){ typed += k; beep(600, .05); }
+  showTyped();
+}
+
+function check(){
+  if(typed === '') return;
+  if(Number(typed) === problem.answer){
+    const clean = tries === 0 && !hitHere;
+    problem = null; state = 'pause';
+    beep(660, .12); setTimeout(() => beep(880, .18), 120);
+    $('hint').textContent = '';
+    $('msg').className = 'msg good';
+    gold[idx] = clean;
+    $('msg').textContent = clean ? 'Perfect! Door open!' : 'You got it! Door open!';
+    $('door' + idx).classList.add('open');
+    idx++; dots();
+    setTimeout(run, 700);
+  }else{
+    tries++;
+    timeLeft = Math.max(.5, timeLeft - WRONG_PENALTY);
+    $('msg').textContent = 'Not quite. Try again!';
+    $('msg').className = 'msg bad';
+    if(tries >= 2) $('hint').textContent = hintFor(problem);
+    beep(180, .25);
+    const el = $('door' + idx);
+    el.classList.remove('shake'); void el.getBoundingClientRect(); el.classList.add('shake');
+    typed = ''; showTyped();
+  }
+}
+
+function escape(){
+  state = 'escape';
+  astro.classList.add('hide');
+  setTimeout(() => { $('pod').classList.add('go'); beep(300, .6); }, 400);
+  setTimeout(() => { state = 'win'; flash(); quake(); boomSound(); }, 1500);
+  setTimeout(() => {
+    const golds = gold.filter(Boolean).length;
+    $('winText').textContent = `${golds} of ${DOORS} doors got a gold star. ` +
+      (lives === LIVES ? 'And not a single meteorite hit you!' : `You escaped with ${lives} ${lives === 1 ? 'life' : 'lives'} left.`);
+    $('winScreen').hidden = false;
+  }, 2600);
+}
+
+function start(){
+  cam = 0; idx = 0; gold = []; problem = null; last = ''; heat = 0;
+  lives = LIVES; timeLeft = TIMER_SECONDS;
+  fx.innerHTML = '';
+  build(); place(); dots(); drawLives();
+  astro.classList.remove('hide');
+  $('startScreen').hidden = true; $('winScreen').hidden = true; $('overScreen').hidden = true;
+  run();
+}
+
+function toStart(){
+  state = 'idle';
+  $('winScreen').hidden = true; $('overScreen').hidden = true; $('startScreen').hidden = false;
+}
+
+$('pad').innerHTML = ['1','2','3','4','5','6','7','8','9','C','0','OK']
+  .map(k => `<button data-k="${k}" class="${k === 'OK' ? 'enter' : k === 'C' ? 'clr' : ''}">${k === 'C' ? 'Clear' : k}</button>`).join('');
+$('pad').addEventListener('click', e => { const b = e.target.closest('button'); if(b) press(b.dataset.k); });
+document.addEventListener('keydown', e => {
+  if(/^[0-9]$/.test(e.key)) press(e.key);
+  else if(e.key === 'Enter') press('OK');
+  else if(e.key === 'Backspace' || e.key === 'Escape') press('C');
+});
+$('modes').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  mode = b.dataset.mode;
+  for(const x of $('modes').children) x.classList.toggle('pick', x === b);
+});
+$('startBtn').addEventListener('click', start);
+$('againBtn').addEventListener('click', toStart);
+$('retryBtn').addEventListener('click', toStart);
+const ro = new ResizeObserver(place); ro.observe(stage);
+
+build(); dots(); drawLives(); requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

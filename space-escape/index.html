@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space Escape Math</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Space Escape">
+<meta name="theme-color" content="#0f1530">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="../icons/space-180.png">
+<link rel="icon" type="image/png" href="../icons/space-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: playful, brave, kid-sized; big buttons, short words
+   IDEA: a spaceship corridor seen side-on, like a cartoon cutaway, with space mermaids in pursuit
+   PICTURE: running astronaut, locked doors, chasing mermaids, a Queen Mermaid boss
+   COLOUR and TYPE: deep hull navy, orange suit, mint unlock green, alarm red, mermaid pink/purple; Fredoka
+   LAYOUT: stage on top, door keypad underneath, stacks on phones */
+:root{color-scheme:dark;--hull:#0f1530;--hull2:#18214a;--panel:#232e63;--ink:#f3f6ff;--dim:#a9b3dd;--suit:#ff8a2b;--mint:#3ee8a5;--red:#ff4d5e;--gold:#ffd23f;--queen:#8b4dff}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--hull);color:var(--ink);font:17px/1.5 Fredoka,system-ui,sans-serif;overflow-x:clip}
+.wrap{max-width:960px;margin:0 auto;padding:16px max(3vw,12px) 32px}
+.titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.home{color:var(--dim);text-decoration:none;font-weight:600;border:2px solid #3b4887;border-radius:12px;padding:6px 12px;min-height:44px;display:inline-flex;align-items:center}
+.home:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.05;margin:4px 0 12px;font-weight:700}
+.bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:10px;color:var(--dim)}
+.dots{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.dot{width:16px;height:16px;border-radius:50%;background:#2c376e;border:2px solid #3b4887}
+.dot.ok{background:var(--mint);border-color:var(--mint)}
+.dot.star{background:var(--gold);border-color:var(--gold)}
+.dot.now{border-color:var(--ink)}
+.dot.crown{width:22px;height:22px;border-radius:6px;border-color:var(--queen)}
+.dot.crown.ok,.dot.crown.star{border-color:var(--queen)}
+
+/* stage */
+.stage{position:relative;height:330px;overflow:hidden;border-radius:18px;background:#0a0f24;border:3px solid #2c376e}
+.stage.alarm{border-color:var(--red)}
+.world{position:absolute;top:0;left:0;height:100%;will-change:transform;
+ background:linear-gradient(#0a0f24 0 30px,transparent 30px),repeating-linear-gradient(90deg,#1b2552 0 118px,#141c42 118px 120px),#1b2552}
+.world::before{content:"";position:absolute;left:0;right:0;top:30px;height:10px;background:repeating-linear-gradient(90deg,#7ff3ff 0 40px,transparent 40px 120px);opacity:.55;filter:blur(1px)}
+.world::after{content:"";position:absolute;left:0;right:0;bottom:0;height:70px;background:repeating-linear-gradient(90deg,#3a4373 0 58px,#2b3360 58px 60px);border-top:6px solid #56609a}
+.window{position:absolute;top:80px;width:90px;height:60px;border-radius:30px;background:radial-gradient(circle at 30% 30%,#fff 0 1px,transparent 2px),radial-gradient(circle at 70% 60%,#fff 0 1px,transparent 2px),radial-gradient(circle at 50% 20%,#cde 0 1px,transparent 2px),#050816;border:5px solid #56609a}
+.door{position:absolute;bottom:70px;width:84px;height:200px}
+.door .frame{position:absolute;inset:-10px -10px 0;border:8px solid #56609a;border-bottom:0;border-radius:12px 12px 0 0;background:#0a0f24}
+.door .half{position:absolute;left:0;right:0;height:50%;background:repeating-linear-gradient(135deg,var(--c) 0 14px,#2a2a2a 14px 28px);transition:transform .7s cubic-bezier(.6,0,.3,1)}
+.door .top{top:0;border-bottom:3px solid #111}
+.door .bot{bottom:0}
+.door.open .top{transform:translateY(-102%)}
+.door.open .bot{transform:translateY(102%)}
+.door .lamp{position:absolute;top:-34px;left:50%;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--red);box-shadow:0 0 12px var(--red)}
+.door.open .lamp{background:var(--mint);box-shadow:0 0 12px var(--mint)}
+.door .num{position:absolute;top:-34px;left:-6px;font-weight:700;font-size:14px;color:var(--dim)}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pod{position:absolute;bottom:70px;width:170px;height:190px}
+.pod.go{animation:launch 1.6s ease-in forwards}
+@keyframes launch{30%{transform:translateY(6px)}100%{transform:translate(500px,-420px) rotate(-20deg)}}
+
+.astro{position:absolute;bottom:68px;width:70px;height:104px;z-index:3}
+.astro .legL,.astro .legR,.astro .armL,.astro .armR{transform-box:fill-box;transform-origin:50% 0}
+.astro.run .legL{animation:swing .4s infinite alternate}
+.astro.run .legR{animation:swing .4s infinite alternate-reverse}
+.astro.run .armL{animation:swing .4s infinite alternate-reverse}
+.astro.run .armR{animation:swing .4s infinite alternate}
+.astro.run .body{animation:bob .2s infinite alternate}
+@keyframes swing{from{transform:rotate(-28deg)}to{transform:rotate(28deg)}}
+@keyframes bob{to{transform:translateY(-3px)}}
+.astro.hide{opacity:0;transition:opacity .3s}
+
+/* chasing mermaids */
+.merm{position:absolute;width:100px;height:56px;z-index:2;animation:float 1.4s ease-in-out infinite alternate}
+.merm.m2{width:84px;height:47px;animation-delay:-.7s}
+.merm .tail{transform-box:view-box;transform-origin:56px 32px;animation:wiggle .5s ease-in-out infinite alternate}
+.merm.grab{animation:lunge .5s}
+@keyframes float{from{translate:0 0}to{translate:0 -14px}}
+@keyframes wiggle{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+@keyframes lunge{50%{translate:30px -6px}}
+
+/* queen */
+.queen{position:absolute;bottom:66px;width:170px;height:226px}
+.queen svg{width:100%;height:100%;animation:float 1.8s ease-in-out infinite alternate}
+.queen .tailQ{transform-box:view-box;transform-origin:90px 110px;animation:wiggle 1s ease-in-out infinite alternate}
+.queen.hurt svg{filter:brightness(2.2) saturate(.3);transition:filter .1s}
+.queen.gone{transition:transform 1s ease-in,opacity 1s;transform:scale(.1) translateY(-200px) rotate(200deg);opacity:0}
+.hearts{position:absolute;top:-34px;left:0;right:0;text-align:center;font-size:26px;color:var(--red);letter-spacing:4px;text-shadow:0 0 8px #000}
+.hearts .lost{color:#3b4887}
+
+/* overlay screens */
+.screen{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:16px;background:rgba(8,12,32,.82)}
+.screen[hidden]{display:none}
+.screen h2{font-size:clamp(26px,5vw,38px);line-height:1.05;margin:0}
+.screen p{margin:0;color:var(--dim);max-width:36ch}
+.modes{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+button{font:inherit;font-weight:600;color:var(--ink);background:var(--panel);border:3px solid #3b4887;border-radius:14px;min-height:48px;padding:6px 18px;cursor:pointer;touch-action:manipulation}
+button:hover{border-color:var(--dim)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button.pick{background:var(--suit);border-color:var(--suit);color:#1b1000}
+button.big{background:var(--mint);border-color:var(--mint);color:#04261a;font-size:22px;padding:8px 34px}
+
+/* keypad console */
+.console{margin-top:14px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:center;background:var(--hull2);border:3px solid #2c376e;border-radius:18px;padding:16px}
+.console.boss{border-color:var(--queen);background:#24184f}
+.q{text-align:center}
+.q .lbl{color:var(--dim);font-size:16px}
+.lvl{display:inline-block;padding:0 10px;border-radius:999px;font-size:14px;font-weight:600;color:#10162f;background:var(--c,#ccc);margin-left:6px}
+.q .sum{font-size:clamp(36px,7.5vw,60px);font-weight:700;line-height:1.1;white-space:nowrap}
+.q .ans{display:inline-block;min-width:1.8em;border-bottom:5px solid var(--gold);color:var(--gold)}
+.q .msg{min-height:1.6em;font-size:18px;font-weight:600}
+.msg.good{color:var(--mint)}.msg.bad{color:var(--red)}
+.hint{color:var(--dim);font-size:16px;min-height:1.5em}
+.meter{height:12px;border-radius:6px;background:#2c376e;overflow:hidden;margin:6px auto 0;max-width:260px}
+.meter i{display:block;height:100%;background:linear-gradient(90deg,var(--red),#ff7ab8);width:0}
+.pad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pad button{font-size:24px;min-height:56px;padding:0}
+.pad .enter{background:var(--mint);border-color:var(--mint);color:#04261a}
+.pad .clr{color:var(--dim)}
+.console.off{opacity:.45;pointer-events:none}
+.foot{color:var(--dim);font-size:14px;margin-top:12px}
+@media(max-width:600px){.console{grid-template-columns:minmax(0,1fr)}.stage{height:290px}}
+@media(prefers-reduced-motion:reduce){.astro.run *,.merm,.merm .tail,.queen svg{animation:none!important}.door .half{transition-duration:.01s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="titlebar"><h1>Space Escape Math</h1><a class="home" href="../">← All games</a></div>
+  <div class="bar"><span id="doorLabel">Door 1 of 10</span><div class="dots" id="dots"></div></div>
+
+  <div class="stage" id="stage">
+    <div class="world" id="world"></div>
+    <div id="mermaids"></div>
+    <svg class="astro" id="astro" viewBox="0 0 70 104" aria-label="Astronaut">
+      <g class="legL"><rect x="22" y="66" width="11" height="30" rx="5" fill="#e06d12"/><rect x="19" y="90" width="17" height="10" rx="4" fill="#3a3f5c"/></g>
+      <g class="armR"><rect x="45" y="40" width="10" height="26" rx="5" fill="#e06d12"/></g>
+      <g class="body">
+        <rect x="8" y="38" width="14" height="26" rx="5" fill="#9aa3c7"/>
+        <rect x="18" y="36" width="34" height="36" rx="12" fill="#ff8a2b"/>
+        <rect x="26" y="46" width="16" height="10" rx="3" fill="#ffd23f"/>
+        <circle cx="35" cy="22" r="20" fill="#f3f6ff"/>
+        <rect x="23" y="13" width="28" height="18" rx="9" fill="#3ee8a5"/>
+        <rect x="27" y="16" width="8" height="5" rx="2.5" fill="#d8fff0" opacity=".8"/>
+      </g>
+      <g class="legR"><rect x="37" y="66" width="11" height="30" rx="5" fill="#ff8a2b"/><rect x="35" y="90" width="17" height="10" rx="4" fill="#3a3f5c"/></g>
+      <g class="armL"><rect x="14" y="40" width="10" height="26" rx="5" fill="#ff8a2b"/></g>
+    </svg>
+
+    <div class="screen" id="startScreen">
+      <h2>Alarm! Space mermaids are on board!</h2>
+      <p>Run to the escape pod. Every door is locked, so solve the math to open it. Don't let the mermaids catch you!</p>
+      <div class="modes" id="modes">
+        <button data-mode="add" class="pick">Adding +</button>
+        <button data-mode="sub">Taking away −</button>
+        <button data-mode="mix">Both</button>
+      </div>
+      <button class="big" id="startBtn">Start running!</button>
+    </div>
+    <div class="screen" id="winScreen" hidden>
+      <h2>You beat the Queen Mermaid!</h2>
+      <p id="winText"></p>
+      <button class="big" id="againBtn">Play again</button>
+    </div>
+  </div>
+
+  <div class="console off" id="console">
+    <div class="q">
+      <div class="lbl"><span id="qLabel">Door is locked</span><span class="lvl" id="lvl"></span></div>
+      <div class="sum"><span id="qText">? + ?</span> = <span class="ans" id="ans">&nbsp;</span></div>
+      <div class="msg" id="msg"></div>
+      <div class="hint" id="hint"></div>
+      <div class="lbl">Mermaids getting close</div>
+      <div class="meter"><i id="meter"></i></div>
+    </div>
+    <div class="pad" id="pad"></div>
+  </div>
+  <p class="foot">Type with the keypad or your keyboard. Gold dot = opened on the first try without getting caught.</p>
+</div>
+
+<script>
+{
+// ===== SETTINGS: You can change these! =====
+const MAX = 40;           // biggest number in any problem
+const DOORS = 10;         // how many doors before the Queen Mermaid
+const SPEED = 4;          // how fast the astronaut runs
+const GAP = 520;          // space between doors
+const CHASE_SECONDS = 30; // how long the mermaids take to catch you at a door (smaller = scarier)
+const QUEEN_HEARTS = 3;   // how many problems it takes to beat the Queen
+// ============================================
+
+const $ = id => document.getElementById(id);
+const world = $('world'), stage = $('stage'), astro = $('astro');
+const LEVELS = [['Easy','#3ee8a5'],['Medium','#7fd3ff'],['Tricky','#ffd23f'],['Hard','#ff8a2b']];
+let mode = 'add', cam = 0, goal = 0, stops = [], idx = 0, state = 'idle', g = 1, lastT = 0;
+let problem = null, typed = '', tries = 0, caughtHere = false, gold = [], last = '';
+let hearts = 0, queenClean = true, audio;
+
+function beep(freq, dur){
+  try{
+    audio = audio || new (window.AudioContext||window.webkitAudioContext)();
+    const o = audio.createOscillator(), gn = audio.createGain();
+    o.frequency.value = freq; o.connect(gn); gn.connect(audio.destination);
+    gn.gain.setValueAtTime(.12, audio.currentTime);
+    gn.gain.exponentialRampToValueAtTime(.001, audio.currentTime + dur);
+    o.start(); o.stop(audio.currentTime + dur);
+  }catch(e){}
+}
+
+const rand = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+const pickOp = () => mode === 'mix' ? (Math.random() < .5 ? '+' : '−') : (mode === 'add' ? '+' : '−');
+const carries = (a, b) => a % 10 + b % 10 >= 10;   // like 17 + 8
+const borrows = (a, b) => a % 10 < b % 10;         // like 32 − 7
+
+// How hard is door i? 0 = first door, 1 = last door
+const progress = i => DOORS > 1 ? i / (DOORS - 1) : 1;
+const levelOf = i => LEVELS[Math.min(3, Math.floor(progress(i) * 4))];
+// Biggest number for door i: starts at 10 and climbs to MAX
+const capOf = i => Math.round(10 + (MAX - 10) * progress(i));
+
+function twoNumber(lo, cap, tricky){
+  const op = pickOp();
+  for(let n = 0; n < 60; n++){
+    if(op === '+'){
+      const s = rand(Math.max(2, lo), cap), a = rand(1, s - 1), b = s - a;
+      if(!tricky || carries(a, b) || n > 50) return {a, b, op, text:`${a} + ${b}`, answer:s};
+    }else{
+      const a = rand(Math.max(2, lo), cap), b = rand(1, a - 1);
+      if(!tricky || borrows(a, b) || n > 50) return {a, b, op, text:`${a} − ${b}`, answer:a - b};
+    }
+  }
+}
+
+function doorProblem(i){
+  const cap = capOf(i), t = progress(i);
+  return twoNumber(Math.floor(cap / 2), cap, t >= .5 && Math.random() < .6);
+}
+
+// The Queen's problems: big numbers, and the final blow uses three numbers
+function queenProblem(heartsLeft){
+  if(heartsLeft > 1) return twoNumber(MAX - 15, MAX, true);
+  if(mode === 'add'){
+    const a = rand(8, 20), b = rand(5, MAX - a - 5), c = rand(3, MAX - a - b);
+    return {three:true, first:`${a} + ${b}`, text:`${a} + ${b} + ${c}`, answer:a + b + c};
+  }
+  if(mode === 'sub'){
+    const a = rand(25, MAX), b = rand(5, 15), c = rand(3, a - b - 1);
+    return {three:true, first:`${a} − ${b}`, text:`${a} − ${b} − ${c}`, answer:a - b - c};
+  }
+  for(;;){
+    if(Math.random() < .5){
+      const a = rand(10, 25), b = rand(6, MAX - a), c = rand(5, a + b - 2);
+      return {three:true, first:`${a} + ${b}`, text:`${a} + ${b} − ${c}`, answer:a + b - c};
+    }
+    const a = rand(20, MAX), b = rand(5, a - 5), c = rand(5, MAX - (a - b));
+    if(c >= 1) return {three:true, first:`${a} − ${b}`, text:`${a} − ${b} + ${c}`, answer:a - b + c};
+  }
+}
+
+function fresh(make){
+  let p;
+  do{ p = make(); }while(p.text === last);
+  last = p.text;
+  return p;
+}
+
+function hintFor(p){
+  if(p.three) return `Two steps: first work out ${p.first}, then do the last part.`;
+  if(p.op === '+') return p.b <= 10 ? `Start at ${p.a} and count up ${p.b}.`
+    : `Try ${p.a} + 10 = ${p.a + 10} first, then add ${p.b - 10} more.`;
+  return p.b <= 10 ? `Start at ${p.a} and count back ${p.b}.`
+    : `Try ${p.a} − 10 = ${p.a - 10} first, then take away ${p.b - 10} more.`;
+}
+
+const mermaidSVG = (tail, fin, hair, cls) => `<svg class="merm ${cls}" viewBox="0 0 110 60">
+  <g class="tail"><path d="M58 26 Q34 20 20 31 Q34 42 58 38Z" fill="${tail}"/><path d="M22 31 L3 16 L10 31 L3 46Z" fill="${fin}"/></g>
+  <path d="M78 14 Q60 4 46 22 Q62 16 76 26Z" fill="${hair}"/>
+  <ellipse cx="66" cy="32" rx="13" ry="8" fill="#ffd2b3"/>
+  <rect x="58" y="27" width="16" height="8" rx="4" fill="${fin}"/>
+  <rect x="74" y="30" width="20" height="5" rx="2.5" fill="#ffd2b3"/>
+  <circle cx="84" cy="20" r="10" fill="#ffd2b3"/>
+  <path d="M74 19 A10 10 0 0 1 94 17 Q85 10 74 19Z" fill="${hair}"/>
+  <circle cx="88" cy="20" r="1.7" fill="#10162f"/><path d="M86 25 Q89 27 92 24" stroke="#10162f" stroke-width="1.3" fill="none"/>
+  <circle cx="84" cy="20" r="15" fill="rgba(180,240,255,.18)" stroke="#bff3ff" stroke-width="1.5"/>
+</svg>`;
+$('mermaids').innerHTML = mermaidSVG('#ff5fa8','#ff9bd0','#ffd23f','m1') + mermaidSVG('#24c6c0','#7ff3e6','#ff6b5b','m2');
+const m1 = $('mermaids').querySelector('.m1'), m2 = $('mermaids').querySelector('.m2');
+
+const queenSVG = `<svg viewBox="0 0 150 200">
+  <g class="tailQ"><path d="M62 108 Q36 160 78 176 Q114 188 122 160 Q96 170 86 150 Q80 128 92 108Z" fill="#8b4dff"/>
+  <path d="M120 160 L146 138 L139 166 L149 190Z" fill="#c4a3ff"/></g>
+  <path d="M50 52 Q48 18 75 20 Q104 18 101 56 Q106 98 92 102 Q96 70 88 52 Q75 42 62 54 Q55 78 58 102 Q44 92 50 52Z" fill="#2ad0c4"/>
+  <rect x="57" y="68" width="36" height="46" rx="14" fill="#ffd2b3"/>
+  <rect x="57" y="80" width="36" height="14" rx="6" fill="#ff4fa3"/>
+  <rect x="34" y="78" width="26" height="7" rx="3.5" fill="#ffd2b3"/>
+  <path d="M38 34 V176 M28 44 V26 M48 44 V26 M28 44 H48" stroke="#ffd23f" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <circle cx="75" cy="52" r="18" fill="#ffd2b3"/>
+  <circle cx="68" cy="52" r="2.4" fill="#10162f"/><circle cx="81" cy="52" r="2.4" fill="#10162f"/>
+  <path d="M63 45 L72 48 M86 45 L77 48" stroke="#10162f" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M68 62 Q75 58 82 62" stroke="#10162f" stroke-width="2" fill="none"/>
+  <path d="M58 36 L62 16 L68 29 L75 9 L82 29 L88 16 L92 36Z" fill="#ffd23f"/>
+  <circle cx="75" cy="27" r="3.5" fill="#ff4d5e"/>
+  <circle cx="75" cy="50" r="32" fill="rgba(180,240,255,.14)" stroke="#bff3ff" stroke-width="2"/>
+</svg>`;
+
+function build(){
+  const start = 520;
+  stops = [];
+  let html = '';
+  for(let i = 0; i < DOORS; i++){
+    const x = start + i * GAP;
+    stops.push({type:'door', x, at:x - 74});
+    html += `<div class="window" style="left:${x - 280}px"></div>
+      <div class="door" id="door${i}" style="left:${x}px;--c:${levelOf(i)[1]}"><div class="frame"></div>
+      <div class="half top"></div><div class="half bot"></div><span class="lamp"></span><span class="num">${i + 1}</span></div>`;
+  }
+  const qx = start + DOORS * GAP + 60, px = qx + 460;
+  stops.push({type:'queen', x:qx, at:qx - 100});
+  stops.push({type:'pod', x:px, at:px + 50});
+  html += `<div class="window" style="left:${qx - 280}px"></div>
+    <div class="queen" id="queen" style="left:${qx}px"><div class="hearts" id="hearts"></div>${queenSVG}</div>
+    <svg class="pod" id="pod" style="left:${px}px" viewBox="0 0 170 190">
+    <path d="M20 170 Q20 40 85 10 Q150 40 150 170 Z" fill="#e9ecf8"/>
+    <path d="M150 170 Q150 60 110 26 Q140 70 138 170Z" fill="#b9c0dd"/>
+    <circle cx="85" cy="80" r="26" fill="#3ee8a5" stroke="#56609a" stroke-width="7"/>
+    <rect x="20" y="150" width="130" height="20" fill="#ff8a2b"/>
+    <path d="M20 170 L0 188 L40 170Z M150 170 L170 188 L130 170Z" fill="#ff4d5e"/></svg>`;
+  world.innerHTML = html;
+  world.style.width = (px + 900) + 'px';
+}
+
+function astroX(){ const w = stage.clientWidth; return Math.max(130, Math.min(w * .38, w - 300)); }
+
+function place(){
+  const ax = astroX();
+  world.style.transform = `translateX(${-cam}px)`;
+  astro.style.left = ax + 'px';
+  // g = 1 means far away, g = 0 means caught
+  const near = ax - 80, far = -50;
+  const x = near + (far - near) * g;
+  m1.style.left = x + 'px'; m1.style.bottom = '120px';
+  m2.style.left = (x - 75) + 'px'; m2.style.bottom = '84px';
+  $('meter').style.width = Math.round(Math.max(0, Math.min(1, 1 - g)) * 100) + '%';
+  stage.classList.toggle('alarm', state === 'stop' && g < .3);
+}
+
+function loop(t){
+  const dt = Math.min(50, t - (lastT || t)); lastT = t;
+  if(state === 'run'){
+    cam = Math.min(goal, cam + SPEED * dt / 16.7);
+    g = Math.max(g, Math.min(1, g + dt / 4000));
+    if(cam >= goal) arrive();
+  }else if(state === 'stop'){
+    g -= dt / 1000 / CHASE_SECONDS;
+    if(g <= 0) caught();
+  }else if(state === 'win'){
+    g = Math.min(2.5, g + dt / 900);
+  }
+  place();
+  requestAnimationFrame(loop);
+}
+
+function dots(){
+  let html = '';
+  for(let i = 0; i < DOORS; i++){
+    let c = 'dot';
+    if(i < idx) c += gold[i] ? ' star' : ' ok'; else if(i === idx) c += ' now';
+    html += `<span class="${c}"></span>`;
+  }
+  let c = 'dot crown';
+  if(idx > DOORS) c += gold[DOORS] ? ' star' : ' ok'; else if(idx === DOORS) c += ' now';
+  $('dots').innerHTML = html + `<span class="${c}" title="Queen Mermaid"></span>`;
+  $('doorLabel').textContent = idx < DOORS ? `Door ${idx + 1} of ${DOORS}` : idx === DOORS ? 'Queen Mermaid!' : 'Escape pod!';
+}
+
+function run(){
+  state = 'run';
+  astro.classList.add('run');
+  $('console').classList.add('off');
+  goal = stops[idx].at - astroX();
+}
+
+function ask(){
+  const s = stops[idx];
+  problem = s.type === 'queen' ? fresh(() => queenProblem(hearts)) : fresh(() => doorProblem(idx));
+  typed = ''; tries = 0;
+  if(s.type === 'queen'){
+    $('qLabel').textContent = hearts === 1 ? 'Final blow! The hardest one' : `Queen Mermaid: ${hearts} hearts left`;
+    $('lvl').textContent = 'Boss'; $('lvl').style.setProperty('--c', '#c4a3ff');
+  }else{
+    const [name, col] = levelOf(idx);
+    $('qLabel').textContent = `Door ${idx + 1} is locked`;
+    $('lvl').textContent = name; $('lvl').style.setProperty('--c', col);
+  }
+  $('qText').textContent = problem.text;
+  $('msg').textContent = ''; $('msg').className = 'msg';
+  $('hint').textContent = '';
+  showTyped();
+  $('console').classList.remove('off');
+  state = 'stop';
+}
+
+function arrive(){
+  astro.classList.remove('run');
+  const s = stops[idx];
+  if(s.type === 'pod'){ escape(); return; }
+  caughtHere = false;
+  if(s.type === 'queen'){
+    hearts = QUEEN_HEARTS; queenClean = true; drawHearts();
+    $('console').classList.add('boss');
+    $('msg').textContent = '';
+  }
+  ask();
+}
+
+function drawHearts(){
+  $('hearts').innerHTML = Array.from({length: QUEEN_HEARTS}, (_, i) =>
+    `<span class="${i < hearts ? '' : 'lost'}">♥</span>`).join('');
+}
+
+function caught(){
+  caughtHere = true; queenClean = queenClean && stops[idx].type !== 'queen';
+  g = .55;
+  for(const m of [m1, m2]){ m.classList.remove('grab'); void m.offsetWidth; m.classList.add('grab'); }
+  astro.classList.remove('shake'); void astro.getBoundingClientRect(); astro.classList.add('shake');
+  beep(140, .4);
+  $('msg').textContent = 'Splash! The mermaids grabbed you! Wriggle free and keep solving!';
+  $('msg').className = 'msg bad';
+}
+
+function showTyped(){ $('ans').innerHTML = typed || '&nbsp;'; }
+
+function press(k){
+  if(!problem || state !== 'stop') return;
+  if(k === 'C') typed = '';
+  else if(k === 'OK'){ check(); return; }
+  else if(typed.length < 2){ typed += k; beep(600, .05); }
+  showTyped();
+}
+
+function check(){
+  if(typed === '') return;
+  const s = stops[idx];
+  if(Number(typed) === problem.answer){
+    const clean = tries === 0 && !caughtHere;
+    problem = null; state = 'pause';
+    beep(660, .12); setTimeout(() => beep(880, .18), 120);
+    $('hint').textContent = '';
+    $('msg').className = 'msg good';
+    if(s.type === 'door'){
+      gold[idx] = clean;
+      $('msg').textContent = clean ? 'Perfect! Door open!' : 'You got it! Door open!';
+      $('door' + idx).classList.add('open');
+      g = Math.min(1, g + .15);
+      idx++; dots();
+      setTimeout(run, 800);
+    }else{
+      if(!clean) queenClean = false;
+      hearts--; drawHearts();
+      const q = $('queen');
+      q.classList.add('hurt'); setTimeout(() => q.classList.remove('hurt'), 250);
+      if(hearts > 0){
+        $('msg').textContent = 'Zap! The Queen lost a heart!';
+        caughtHere = false;
+        setTimeout(ask, 1100);
+      }else{
+        $('msg').textContent = 'You defeated the Queen Mermaid!';
+        gold[DOORS] = queenClean;
+        state = 'win';
+        setTimeout(() => q.classList.add('gone'), 300);
+        $('console').classList.remove('boss');
+        idx++; dots();
+        setTimeout(() => { run(); }, 1500);
+      }
+    }
+  }else{
+    tries++;
+    g = Math.max(.02, g - .15);
+    $('msg').textContent = s.type === 'queen' ? 'The Queen laughs! Try again!' : 'Not quite. Try again!';
+    $('msg').className = 'msg bad';
+    if(tries >= 2) $('hint').textContent = hintFor(problem);
+    beep(180, .25);
+    const el = s.type === 'queen' ? $('queen') : $('door' + idx);
+    el.classList.remove('shake'); void el.getBoundingClientRect(); el.classList.add('shake');
+    typed = ''; showTyped();
+  }
+}
+
+function escape(){
+  state = 'win';
+  astro.classList.add('hide');
+  setTimeout(() => { $('pod').classList.add('go'); beep(300, .6); }, 400);
+  setTimeout(() => {
+    const golds = gold.slice(0, DOORS).filter(Boolean).length;
+    $('winText').textContent = `${golds} of ${DOORS} doors got a gold star` +
+      (gold[DOORS] ? ', and you beat the Queen without a single mistake!' : '. Can you beat the Queen with no mistakes next time?');
+    $('winScreen').hidden = false;
+  }, 2100);
+}
+
+function start(){
+  cam = 0; idx = 0; gold = []; problem = null; g = 1; last = '';
+  build(); place(); dots();
+  astro.classList.remove('hide');
+  $('console').classList.remove('boss');
+  $('startScreen').hidden = true; $('winScreen').hidden = true;
+  run();
+}
+
+$('pad').innerHTML = ['1','2','3','4','5','6','7','8','9','C','0','OK']
+  .map(k => `<button data-k="${k}" class="${k === 'OK' ? 'enter' : k === 'C' ? 'clr' : ''}">${k === 'C' ? 'Clear' : k}</button>`).join('');
+$('pad').addEventListener('click', e => { const b = e.target.closest('button'); if(b) press(b.dataset.k); });
+document.addEventListener('keydown', e => {
+  if(/^[0-9]$/.test(e.key)) press(e.key);
+  else if(e.key === 'Enter') press('OK');
+  else if(e.key === 'Backspace' || e.key === 'Escape') press('C');
+});
+$('modes').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  mode = b.dataset.mode;
+  for(const x of $('modes').children) x.classList.toggle('pick', x === b);
+});
+$('startBtn').addEventListener('click', start);
+$('againBtn').addEventListener('click', () => { $('winScreen').hidden = true; $('startScreen').hidden = false; });
+const ro = new ResizeObserver(place); ro.observe(stage);
+
+build(); dots(); requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
