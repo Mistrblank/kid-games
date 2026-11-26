@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<script src="../compat.js"></script>
 <title>Gem Cave</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -31,7 +32,8 @@
     font-size: 16px; padding: 10px 18px; border: none; border-radius: 12px; color: #fff; cursor: pointer;
     font-family: inherit;
   }
-  #rope { background: #8a5a2b; box-shadow: 0 4px 0 #4a2f14; margin-bottom: 14px; }
+  #rope { background: #8a5a2b; color: #fff; font: inherit; cursor: pointer; }
+  #rope.armed { background: #c0392b; border-color: #ff8a7a; }
   #shop { width: min(480px, 96vw); background: #2a1d17; border: 3px solid #5c4232; border-radius: 14px; padding: 12px; margin-bottom: 14px; }
   #shop h2 { margin: 0 0 4px; font-size: 22px; color: #ffcf5a; }
   #shopNote { font-size: 14px; opacity: .85; margin-bottom: 8px; }
@@ -64,6 +66,7 @@
   <span class="pill">🪙 <b id="coins">0</b></span>
   <span class="pill">📏 <b id="depth">0</b>m</span>
   <span class="pill" id="bossPill"></span>
+  <button class="pill" id="rope">🪢 Rope up</button>
 </div>
 <div id="msg"></div>
 <canvas id="cave" width="480" height="560"></canvas>
@@ -73,8 +76,7 @@
   <button id="down" aria-label="Down">⬇️</button>
   <button id="right" aria-label="Right">➡️</button>
 </div>
-<button class="btn" id="rope">🪢 Rope up to the surface (drops half your gems)</button>
-<div class="legend">Gems in your bag turn into coins when you get back to the grass. Deeper gems are worth more: Ruby 10 · Emerald 20 · Sapphire 30 · Diamond 50. Watch out for falling boulders, bats (tap toward a bat to bop it!), and dirt with orange specks — that's lava! A Rock Golem guards the bottom of the cave. Look for cracked stone: secret passages hide its 3 hearts.</div>
+<div class="legend">Gems in your bag turn into coins when you get back to the grass. Roping up drops 0–3 gems. If you faint, your gems stay where you fell so you can go get them. Deeper gems are worth more: Ruby 10 · Emerald 20 · Sapphire 30 · Diamond 50. Watch out for falling boulders, bats (tap toward a bat to bop it!), and dirt with orange specks — that's lava! A Rock Golem guards the bottom of the cave. Look for cracked stone: secret passages hide its 3 hearts.</div>
 <div id="shop">
   <h2>🏪 Miner's Shop</h2>
   <div id="shopNote"></div>
@@ -101,7 +103,7 @@ const PICK_MAX = [30, 50, 80, 120];
 const PICK_COST = [60, 150, 300];
 const HEART_COST = { 3: 100, 4: 250 };
 
-let grid, bats, player, coins, bag, dur, up, vaults, boss, sparkles, tickCount = 0, shakeT = 0;
+let grid, bats, player, coins, bag, dur, up, vaults, boss, drops = [], sparkles, tickCount = 0, shakeT = 0;
 
 const rand = n => Math.floor(Math.random() * n);
 const atSurface = () => player.y === 0;
@@ -143,6 +145,8 @@ function buildCave() {
       for (let x = px; x < px + 3; x++) grid[y][x] = { t: EMPTY };
     bats.push({ x: px + 1, y: py });
   }
+
+  drops = [];
 
   // Boss lair at the bottom: ancient stone roof with two dirt doorways
   const R = ROWS - 4;
@@ -264,6 +268,13 @@ function move(dx, dy) {
   }
 
   player.x = nx; player.y = ny;
+  const found = dropAt(nx, ny);
+  if (found) {
+    bag.push(...found.gems);
+    drops = drops.filter(d => d !== found);
+    setMsg(`You found your dropped bag! ${gemWord(found.gems.length)} back in your pocket.`);
+    burst(nx, ny, ['#ffcf2a', '#fff3a0'], 16);
+  }
   if (atSurface()) arriveSurface();
   checkBats();
   render();
@@ -290,23 +301,31 @@ function hurt(text) {
   render();
 }
 
-// Lose half your gems (rounded down), picked at random
-function dropHalf() {
-  const lost = Math.floor(bag.length / 2);
+// Rope: lose 0 to 3 random gems
+function dropSome() {
+  const lost = Math.min(bag.length, rand(4));
   for (let i = 0; i < lost; i++) bag.splice(rand(bag.length), 1);
   return lost;
 }
+const dropAt = (x, y) => drops.find(d => d.x === x && d.y === y);
 const gemWord = n => `${n} gem${n === 1 ? '' : 's'}`;
 
 function faint() {
-  const lost = dropHalf();
+  const n = bag.length;
+  if (n) {
+    const here = dropAt(player.x, player.y);
+    if (here) here.gems.push(...bag); else drops.push({ x: player.x, y: player.y, gems: bag.slice() });
+    bag = [];
+  }
   player.x = Math.floor(COLS / 2); player.y = 0; player.inv = 15;
-  arriveSurface(`You fainted! The rescue team pulled you out${lost ? ` and you dropped ${gemWord(lost)}` : ''}. `);
+  arriveSurface(n
+    ? `You fainted! The rescue team pulled you out. Your ${gemWord(n)} ${n === 1 ? 'is' : 'are'} still down where you fell. Go get ${n === 1 ? 'it' : 'them'} back!`
+    : 'You fainted! The rescue team pulled you out.');
 }
 
 function ropeUp() {
   if (atSurface()) { setMsg("You're already on the surface!"); return; }
-  const lost = dropHalf();
+  const lost = dropSome();
   player.x = Math.floor(COLS / 2); player.y = 0;
   arriveSurface(lost ? `You climbed the rope but dropped ${gemWord(lost)} on the way. ` : 'You climbed the rope back up. ');
   render();
@@ -341,7 +360,7 @@ function tick() {
       if (c.t !== ROCK) continue;
       const below = grid[y + 1][x];
       const playerBelow = player.x === x && player.y === y + 1;
-      if (below.t === EMPTY && !playerBelow) {
+      if (below.t === EMPTY && !playerBelow && !dropAt(x, y + 1)) {
         if (c.falling) {
           grid[y + 1][x] = c; grid[y][x] = { t: EMPTY };
           bats = bats.filter(b => !(b.x === x && b.y === y + 1));
@@ -393,13 +412,14 @@ function tick() {
 
 // ---------- Saving ----------
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ grid, bats, player, coins, bag, dur, up, vaults, boss })); } catch (e) {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ grid, bats, player, coins, bag, dur, up, vaults, boss, drops })); } catch (e) {}
 }
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem(SAVE_KEY));
     if (!d || !d.grid || d.grid.length !== ROWS || !d.boss) return false;
     ({ grid, bats, player, coins, bag, dur, up, vaults, boss } = d);
+    drops = d.drops || [];
     sparkles = [];
     return true;
   } catch (e) { return false; }
@@ -531,6 +551,16 @@ function drawBoss(py) {
   }
 }
 
+function drawSack(d, py) {
+  const px = d.x * T;
+  ctx.fillStyle = '#b07a3e'; ctx.beginPath(); ctx.arc(px + 20, py + 26, 11, 0, Math.PI * 2); ctx.fill();
+  ctx.fillRect(px + 15, py + 10, 10, 8);
+  ctx.fillStyle = '#7a4f22'; ctx.fillRect(px + 13, py + 16, 14, 3);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(String(d.gems.length), px + 20, py + 31);
+  if (tickCount % 4 < 2) { ctx.fillStyle = '#fff6b0'; ctx.fillRect(px + 29, py + 11, 3, 3); }
+}
+
 function drawLava(px, py) {
   ctx.fillStyle = '#c2280f'; ctx.fillRect(px, py, T, T);
   ctx.fillStyle = '#ff7a1a';
@@ -613,6 +643,7 @@ function draw() {
     }
   }
   if (!boss.defeated && boss.y + 1 >= camY) drawBoss((boss.y - camY) * T);
+  drops.forEach(d => { if (d.y >= camY && d.y < camY + VIEW) drawSack(d, (d.y - camY) * T); });
   bats.forEach(b => { if (b.y >= camY && b.y < camY + VIEW) drawBat(b, (b.y - camY) * T); });
   drawPlayer((player.y - camY) * T);
   sparkles.forEach(s => { ctx.globalAlpha = Math.max(0, s.life / 30); ctx.fillStyle = s.color; ctx.fillRect(s.x, s.y - camY * T, 4, 4); });
@@ -661,7 +692,21 @@ const bind = (id, dx, dy) => {
   b.addEventListener('click', () => move(dx, dy));
 };
 bind('up', 0, -1); bind('down', 0, 1); bind('left', -1, 0); bind('right', 1, 0);
-document.getElementById('rope').addEventListener('click', ropeUp);
+const ropeBtn = document.getElementById('rope');
+let ropeArmed = false, ropeTimer = null;
+function disarmRope() { ropeArmed = false; ropeBtn.classList.remove('armed'); ropeBtn.textContent = '🪢 Rope up'; }
+ropeBtn.addEventListener('click', () => {
+  ropeBtn.blur();
+  if (atSurface()) { setMsg("You're already on the surface!"); return; }
+  if (!ropeArmed) {
+    ropeArmed = true; ropeBtn.classList.add('armed'); ropeBtn.textContent = 'Tap again to rope up';
+    setMsg('Rope up to the surface? You might drop up to 3 gems. Tap the rope again to go.');
+    clearTimeout(ropeTimer); ropeTimer = setTimeout(disarmRope, 3000);
+    return;
+  }
+  clearTimeout(ropeTimer); disarmRope(); ropeUp();
+});
+document.addEventListener('click', e => { if (e.target.closest && e.target.closest('button')) e.target.closest('button').blur(); });
 let resetArmed = false;
 const resetBtn = document.getElementById('reset');
 resetBtn.addEventListener('click', () => {

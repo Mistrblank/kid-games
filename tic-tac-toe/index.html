@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../compat.js"></script>
 <title>Tic Tac Toe vs Robot</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -21,23 +22,24 @@
    COLOUR and TYPE: sunny yellow field, deep ink, blue for the kid's X, coral for Robot's O; Fredoka + Nunito
    LAYOUT: board left/top, Robot's speech bubble and controls beside it, "peek inside Robot's brain" panel below */
 :root{color-scheme:light dark;
-  --bg:light-dark(#ffd23f,#17163a);--ink:light-dark(#1d1b45,#f4f1ff);
-  --card:light-dark(#fffaf0,#24224f);--line:light-dark(#1d1b45,#c9c3ff);
-  --x:light-dark(#2457ff,#6f95ff);--o:light-dark(#ef5a3c,#ff7d61);
-  --soft:light-dark(#fff0b8,#2e2c63);--muted:light-dark(#4a4770,#b9b4e6)}
+  --bg:#ffd23f;--ink:#1d1b45;
+  --card:#fffaf0;--line:#1d1b45;
+  --x:#2457ff;--o:#ef5a3c;
+  --soft:#fff0b8;--muted:#4a4770}
+@media (prefers-color-scheme:dark){:root{--bg:#17163a;--ink:#f4f1ff;--card:#24224f;--line:#c9c3ff;--x:#6f95ff;--o:#ff7d61;--soft:#2e2c63;--muted:#b9b4e6}}
 *{box-sizing:border-box;min-width:0}
-body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 Nunito,system-ui,sans-serif;overflow-x:clip}
-.band{padding:clamp(20px,3.5vw,48px) max(5vw,16px);max-width:1240px;margin:0 auto}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 Nunito,system-ui,sans-serif;overflow-x:hidden;overflow-x:clip}
+.band{padding:48px max(5vw,16px);padding:clamp(20px,3.5vw,48px) max(5vw,16px);max-width:1240px;margin:0 auto}
 .titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .home{color:var(--ink);text-decoration:none;font-weight:800;border:3px solid var(--line);border-radius:14px;padding:6px 14px;min-height:44px;display:inline-flex;align-items:center;background:var(--card)}
 .home:focus-visible{outline:3px solid var(--x);outline-offset:2px}
-h1{font:700 clamp(32px,5vw,48px)/1.05 Fredoka,Nunito,sans-serif;margin:0 0 6px;text-wrap:balance}
+h1{font:700 48px/1.05 Fredoka,Nunito,sans-serif;font:700 clamp(32px,5vw,48px)/1.05 Fredoka,Nunito,sans-serif;margin:0 0 6px;text-wrap:balance}
 h1 .x{color:var(--x)}h1 .o{color:var(--o)}
 .sub{margin:0 0 22px;color:var(--muted);max-width:60ch}
-.game{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:clamp(18px,3vw,36px);align-items:start}
-.boardbox{background:var(--card);border:3px solid var(--line);border-radius:28px;padding:clamp(12px,2.5vw,22px);box-shadow:0 10px 0 var(--line)}
+.game{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:36px;gap:clamp(18px,3vw,36px);align-items:start}
+.boardbox{background:var(--card);border:3px solid var(--line);border-radius:28px;padding:22px;padding:clamp(12px,2.5vw,22px);box-shadow:0 10px 0 var(--line)}
 .board{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));aspect-ratio:1;position:relative;gap:5px;background:var(--line);border-radius:10px;overflow:hidden}
-.cell{appearance:none;border:0;background:var(--card);padding:10%;cursor:pointer;position:relative;color:var(--ink);font:inherit;touch-action:manipulation}
+.cell{-webkit-appearance:none;appearance:none;border:0;background:var(--card);padding:10%;cursor:pointer;position:relative;color:var(--ink);font:inherit;touch-action:manipulation}
 .cell:hover:not(:disabled){background:var(--soft)}
 .cell:focus-visible{outline:4px solid var(--x);outline-offset:-8px;border-radius:14px}
 .cell:disabled{cursor:default}
@@ -76,7 +78,7 @@ input[type=text]{width:100%;font:16px Nunito,sans-serif;min-height:44px;padding:
 .btn{font:700 18px Fredoka,sans-serif;min-height:48px;padding:10px 22px;border:3px solid var(--line);border-radius:16px;background:var(--o);color:#fff;cursor:pointer;box-shadow:0 5px 0 var(--line);touch-action:manipulation}
 .btn:active{transform:translateY(3px);box-shadow:0 2px 0 var(--line)}
 .btn:focus-visible{outline:3px solid var(--x);outline-offset:3px}
-.peek{margin-top:clamp(22px,3vw,36px);background:var(--card);border:3px solid var(--line);border-radius:24px;padding:4px 20px}
+.peek{margin-top:36px;margin-top:clamp(22px,3vw,36px);background:var(--card);border:3px solid var(--line);border-radius:24px;padding:4px 20px}
 .peek summary{cursor:pointer;font:700 20px Fredoka,sans-serif;padding:14px 0;min-height:44px}
 .peek h3{font:700 17px Fredoka,sans-serif;margin:16px 0 6px}
 .peek ol{padding-left:22px;margin:0 0 10px}.peek li{margin-bottom:6px}
@@ -92,7 +94,7 @@ pre{overflow-x:auto;white-space:pre-wrap;background:var(--soft);border-radius:14
   <p class="sub"><span id="rule"></span> Tap a square to make your move. Robot checks the board, picks its move, and tells you why.</p>
 
   <div class="game">
-    <div class="boardbox"><div class="board" id="board" role="grid" aria-label="Tic Tac Toe board"></div></div>
+    <div class="boardbox"><div class="board" id="board" data-square role="grid" aria-label="Tic Tac Toe board"></div></div>
 
     <div class="side">
       <div class="robot">
