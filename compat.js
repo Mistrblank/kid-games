@@ -1,6 +1,21 @@
 /* Compatibility helpers so the games run on older iPads (iOS 12 and up).
    Written in old-style JavaScript on purpose so this file itself never breaks. */
 (function () {
+  // 0. If something breaks, show the error on the page so it can be reported without a computer.
+  var shown = 0;
+  window.addEventListener('error', function (e) {
+    if (shown++ > 2) return;
+    var box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#b00020;color:#fff;' +
+      'font:14px/1.4 -apple-system,sans-serif;padding:10px 12px;border-radius:10px;white-space:pre-wrap;word-break:break-word';
+    box.textContent = 'Oops, the game hit an error (please send a screenshot):\n' +
+      (e.message || 'unknown') + '\nline ' + (e.lineno || '?') + ', column ' + (e.colno || '?') +
+      (e.filename ? ' in ' + e.filename.split('/').slice(-2).join('/') : '') +
+      '\n' + navigator.userAgent;
+    var add = function () { document.body.appendChild(box); };
+    if (document.body) add(); else document.addEventListener('DOMContentLoaded', add);
+  });
+
   // 1. Rounded rectangles on canvas (Safari 16+). Used by Gem Cave.
   if (window.CanvasRenderingContext2D && !CanvasRenderingContext2D.prototype.roundRect) {
     CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
